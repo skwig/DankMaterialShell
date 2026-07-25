@@ -1,63 +1,123 @@
-//@ pragma Env QSG_RENDER_LOOP=threaded
-//@ pragma Env QT_MEDIA_BACKEND=ffmpeg
-//@ pragma Env QT_FFMPEG_DECODING_HW_DEVICE_TYPES=vaapi
-//@ pragma Env QT_FFMPEG_ENCODING_HW_DEVICE_TYPES=vaapi
 //@ pragma Env QT_WAYLAND_DISABLE_WINDOWDECORATION=1
 //@ pragma Env QT_QUICK_CONTROLS_STYLE=Material
 //@ pragma UseQApplication
-//@ pragma AppId com.danklinux.dms
+//@ pragma AppId dev.skwig.dms.bluetoothpoc
 
 import QtQuick
 import Quickshell
+import Quickshell.Wayland
 import qs.Common
-import qs.Modules
 import qs.Services
+import qs.Widgets
+import qs.Modules.ControlCenter.Details
 
 ShellRoot {
-    id: entrypoint
+    id: root
 
-    readonly property bool runGreeter: Quickshell.env("DMS_RUN_GREETER") === "1" || Quickshell.env("DMS_RUN_GREETER") === "true"
-    readonly property bool disableHotReload: Quickshell.env("DMS_DISABLE_HOT_RELOAD") === "1" || Quickshell.env("DMS_DISABLE_HOT_RELOAD") === "true"
+    readonly property var targetScreen: Quickshell.screens.length > 0 ? Quickshell.screens[0] : null
 
-    Component.onCompleted: {
-        Quickshell.watchFiles = !disableHotReload;
-    }
+    // Use the standalone backend directly so this POC does not depend on
+    // DMS frame/bar surfaces or the saved DMS frame mode.
+    DankPopoutStandalone {
+        id: bluetoothPopout
 
-    Loader {
-        id: wallpaperLoader
-        active: !entrypoint.runGreeter
-        asynchronous: false
+        screen: root.targetScreen
+        layerNamespace: "skwig:bluetooth-poc"
+        popupWidth: 520
+        popupHeight: Math.min(620, Math.max(360, (screen?.height ?? 1080) - 96))
+        positioning: ""
+        fullHeightSurface: true
+        onBackgroundClicked: close()
 
-        sourceComponent: Scope {
-            WallpaperBackground {}
+        Component.onCompleted: PopoutService.controlCenterPopout = bluetoothPopout
+        Component.onDestruction: {
+            if (PopoutService.controlCenterPopout === bluetoothPopout)
+                PopoutService.controlCenterPopout = null;
+        }
 
-            Loader {
-                active: SettingsData.blurredWallpaperLayer && CompositorService.isNiri
-                asynchronous: false
-                sourceComponent: BlurredWallpaperBackground {}
+        onShouldBeVisibleChanged: {
+            if (!shouldBeVisible && BluetoothService.adapter?.discovering)
+                BluetoothService.adapter.discovering = false;
+        }
+
+        content: Component {
+            Item {
+                BluetoothDetail {
+                    id: bluetoothDetail
+
+                    anchors.fill: parent
+                    bluetoothCodecModalRef: codecSelector
+                    onShowCodecSelector: device => codecSelector.show(device)
+                }
+
+                BluetoothCodecSelector {
+                    id: codecSelector
+
+                    anchors.fill: parent
+                    z: 10000
+                    onCodecSelected: (deviceAddress, codecName) => {
+                        bluetoothDetail.updateDeviceCodecDisplay(deviceAddress, codecName);
+                    }
+                }
             }
         }
     }
 
-    Loader {
-        id: shellCoreLoader
-        active: !entrypoint.runGreeter
-        asynchronous: true
-        source: "ShellCore.qml"
-        onLoaded: dmsShellLoader.setSource("DMSShell.qml", {
-            core: item
-        })
-    }
+    // Temporary button for the POC. Replace this PanelWindow with your own bar
+    // and keep the setTriggerPosition(...); bluetoothPopout.toggle(); calls.
+    PanelWindow {
+        id: triggerWindow
 
-    Loader {
-        id: dmsShellLoader
-        asynchronous: true
-    }
+        screen: root.targetScreen
+        visible: true
+        anchors.top: true
+        anchors.right: true
+        implicitWidth: 56
+        implicitHeight: 56
+        exclusiveZone: 0
+        color: "transparent"
 
-    Loader {
-        id: dmsGreeterLoader
-        active: entrypoint.runGreeter
-        asynchronous: false
-        source: "DMSGreeter.qml"
+        WlrLayershell.layer: WlrLayer.Top
+        WlrLayershell.namespace: "skwig:bluetooth-poc-trigger"
+
+        function toggleBluetooth() {
+            if (!screen)
+                return;
+
+            // The trigger window is anchored to the screen's right edge, so
+            // convert the button's window-local x coordinate to screen-local x.
+            const triggerX = screen.width - implicitWidth + button.x;
+            const triggerY = implicitHeight + 4;
+
+            bluetoothPopout.setTriggerPosition(triggerX, triggerY, button.width, "right", screen, SettingsData.Position.Top, implicitHeight, 0, null);
+            bluetoothPopout.toggle();
+        }
+
+        Rectangle {
+            id: button
+
+            anchors.fill: parent
+            anchors.margins: 8
+            radius: Theme.cornerRadius
+            color: buttonMouse.containsMouse ? Theme.surfaceContainerHigh : Theme.surfaceContainer
+            border.width: Theme.layerOutlineWidth
+            border.color: bluetoothPopout.shouldBeVisible ? Theme.primary : Theme.outlineMedium
+
+            DankIcon {
+                anchors.centerIn: parent
+                name: !BluetoothService.available ? "bluetooth_disabled" : (BluetoothService.connected ? "bluetooth_connected" : "bluetooth")
+                size: 22
+                color: BluetoothService.enabled ? Theme.primary : Theme.surfaceVariantText
+            }
+
+            MouseArea {
+                id: buttonMouse
+
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: triggerWindow.toggleBluetooth()
+            }
+        }
     }
 }

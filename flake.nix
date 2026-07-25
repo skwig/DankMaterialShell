@@ -72,6 +72,43 @@
           kimageformats
         ];
 
+      mkBluetoothPoc =
+        pkgs:
+        let
+          qtPackages = qmlPkgs pkgs;
+        in
+        pkgs.stdenvNoCC.mkDerivation {
+          pname = "dms-bluetooth-poc";
+          version = "1.5.2";
+          src = ./quickshell;
+          nativeBuildInputs = [ pkgs.makeWrapper ];
+          dontBuild = true;
+
+          installPhase = ''
+            runHook preInstall
+
+            mkdir -p "$out/share/quickshell" "$out/bin"
+            cp -r . "$out/share/quickshell/dms-bluetooth-poc"
+
+            makeWrapper ${pkgs.quickshell}/bin/qs "$out/bin/dms-bluetooth-poc" \
+              --add-flags "-p $out/share/quickshell/dms-bluetooth-poc" \
+              --set DMS_DISABLE_HOT_RELOAD 1 \
+              --set DMS_DISABLE_MATUGEN 1 \
+              --prefix PATH : "${pkgs.lib.makeBinPath [ pkgs.pulseaudio ]}" \
+              --prefix NIXPKGS_QT6_QML_IMPORT_PATH : "${mkQmlImportPath pkgs qtPackages}" \
+              --prefix QT_PLUGIN_PATH : "${mkQtPluginPath pkgs qtPackages}"
+
+            runHook postInstall
+          '';
+
+          meta = {
+            description = "QML-only DMS Bluetooth popup proof of concept";
+            license = pkgs.lib.licenses.mit;
+            mainProgram = "dms-bluetooth-poc";
+            platforms = pkgs.lib.platforms.linux;
+          };
+        };
+
       # Allows downstream modules to provide their own 'pkgs' (with overlays)
       # instead of being forced to use the flake's locked nixpkgs.
       mkDmsShell =
@@ -189,11 +226,21 @@
       };
     in
     {
-      packages = forEachSystem (
+      packages = forEachLinuxSystem (
         system: pkgs: {
+          bluetooth-poc = mkBluetoothPoc pkgs;
           dms-shell = mkDmsShell pkgs;
-          default = self.packages.${system}.dms-shell;
+          default = self.packages.${system}.bluetooth-poc;
           quickshell = builtins.warn "dank-material-shell: the package Quickshell is not included in the DMS flake anymore. We recommend you to use the one from nixos-unstable branch of Nixpkgs or the upstream flake." pkgs.quickshell;
+        }
+      );
+
+      apps = forEachLinuxSystem (
+        system: pkgs: {
+          default = {
+            type = "app";
+            program = "${self.packages.${system}.bluetooth-poc}/bin/dms-bluetooth-poc";
+          };
         }
       );
 
