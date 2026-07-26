@@ -6,6 +6,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
+import Quickshell.Widgets
 
 import qs.Common
 import qs.Modals
@@ -27,6 +28,10 @@ ShellRoot {
     property int pendingOsdResumeReloads: 0
 
     readonly property Toplevel activeWindow: ToplevelManager.activeToplevel
+
+    readonly property var activeDesktopEntry: activeWindow?.appId ? DesktopEntries.heuristicLookup(Paths.moddedAppId(activeWindow.appId)) : null
+
+    readonly property string activeWindowIconSource: activeWindow?.appId ? Paths.getAppIcon(activeWindow.appId, activeDesktopEntry) : ""
 
     readonly property string activeWindowTitle: activeWindow?.title || activeWindow?.appId || "Desktop"
 
@@ -54,15 +59,6 @@ ShellRoot {
     }
 
     Component.onCompleted: {
-        /*
-         * In DankOSD:
-         *
-         * Position.Left =
-         *     left-aligned horizontally
-         *     top-aligned vertically
-         *
-         * Therefore this is the top-left OSD position.
-         */
         SettingsData.osdPosition = SettingsData.Position.Left;
 
         SettingsData.osdMediaVolumeEnabled = true;
@@ -427,6 +423,7 @@ ShellRoot {
                  */
                 Variants {
                     model: SettingsData.getFilteredScreens("osd")
+
                     delegate: BrightnessOSD {}
                 }
 
@@ -590,23 +587,90 @@ ShellRoot {
 
                 clip: true
 
-                StyledText {
+                Row {
                     anchors {
                         left: parent.left
                         right: parent.right
                         verticalCenter: parent.verticalCenter
                     }
 
-                    text: root.activeWindowTitle
-                    visible: text.length > 0
+                    spacing: 8
 
-                    color: "#ffffff"
-                    font.pixelSize: 15
-                    font.weight: Font.Medium
+                    Item {
+                        id: activeWindowIconContainer
 
-                    elide: Text.ElideRight
-                    wrapMode: Text.NoWrap
-                    maximumLineCount: 1
+                        width: 20
+                        height: 20
+
+                        IconImage {
+                            id: activeWindowIcon
+
+                            anchors.fill: parent
+
+                            source: root.activeWindowIconSource
+
+                            visible: root.activeWindow && status === Image.Ready
+
+                            smooth: true
+                            mipmap: true
+                            asynchronous: true
+                        }
+
+                        DankIcon {
+                            anchors.centerIn: parent
+
+                            name: "desktop_windows"
+                            size: 19
+                            color: "#ffffff"
+
+                            visible: !root.activeWindow
+                        }
+
+                        DankIcon {
+                            anchors.centerIn: parent
+
+                            name: "sports_esports"
+                            size: 19
+                            color: "#ffffff"
+
+                            visible: root.activeWindow && root.activeWindow.appId && activeWindowIcon.status !== Image.Ready && Paths.isSteamApp(root.activeWindow.appId)
+                        }
+
+                        StyledText {
+                            anchors.centerIn: parent
+
+                            text: {
+                                if (!root.activeWindow?.appId)
+                                    return "?";
+
+                                const appName = Paths.getAppName(root.activeWindow.appId, root.activeDesktopEntry);
+
+                                return appName ? appName.charAt(0).toUpperCase() : "?";
+                            }
+
+                            color: "#ffffff"
+                            font.pixelSize: 11
+                            font.weight: Font.Bold
+
+                            visible: root.activeWindow && root.activeWindow.appId && activeWindowIcon.status !== Image.Ready && !Paths.isSteamApp(root.activeWindow.appId)
+                        }
+                    }
+
+                    StyledText {
+                        width: Math.max(0, parent.width - activeWindowIconContainer.width - parent.spacing)
+
+                        anchors.verticalCenter: parent.verticalCenter
+
+                        text: root.activeWindowTitle
+
+                        color: "#ffffff"
+                        font.pixelSize: 15
+                        font.weight: Font.Medium
+
+                        elide: Text.ElideRight
+                        wrapMode: Text.NoWrap
+                        maximumLineCount: 1
+                    }
                 }
             }
 
@@ -645,6 +709,7 @@ ShellRoot {
                         anchors.centerIn: parent
 
                         name: BatteryService.getBatteryIcon()
+
                         size: 22
 
                         color: {
@@ -661,6 +726,7 @@ ShellRoot {
 
                         anchors.fill: parent
                         hoverEnabled: true
+
                         cursorShape: Qt.PointingHandCursor
 
                         onClicked: {
@@ -693,8 +759,9 @@ ShellRoot {
                         anchors.centerIn: parent
 
                         name: {
-                            if (!NetworkService.networkAvailable)
+                            if (!NetworkService.networkAvailable) {
                                 return "wifi_off";
+                            }
 
                             if (NetworkService.networkStatus === "ethernet") {
                                 return "lan";
@@ -713,6 +780,7 @@ ShellRoot {
 
                         anchors.fill: parent
                         hoverEnabled: true
+
                         cursorShape: Qt.PointingHandCursor
 
                         onClicked: {
@@ -732,11 +800,13 @@ ShellRoot {
                     radius: 4
 
                     color: {
-                        if (bluetoothPopout.shouldBeVisible)
+                        if (bluetoothPopout.shouldBeVisible) {
                             return Qt.rgba(1, 1, 1, 0.16);
+                        }
 
-                        if (bluetoothMouseArea.containsMouse)
+                        if (bluetoothMouseArea.containsMouse) {
                             return Qt.rgba(1, 1, 1, 0.10);
+                        }
 
                         return "transparent";
                     }
@@ -756,6 +826,7 @@ ShellRoot {
 
                         anchors.fill: parent
                         hoverEnabled: true
+
                         cursorShape: Qt.PointingHandCursor
 
                         onClicked: {
@@ -823,6 +894,7 @@ ShellRoot {
 
                         anchors.fill: parent
                         hoverEnabled: true
+
                         cursorShape: Qt.PointingHandCursor
 
                         onClicked: {
@@ -881,6 +953,7 @@ ShellRoot {
 
                             anchors {
                                 top: notificationIcon.top
+
                                 right: notificationIcon.right
                             }
 
@@ -895,6 +968,7 @@ ShellRoot {
 
                         anchors.fill: parent
                         hoverEnabled: true
+
                         cursorShape: Qt.PointingHandCursor
 
                         onClicked: {
@@ -915,8 +989,9 @@ ShellRoot {
                     radius: 4
 
                     color: {
-                        if (calendarPopout.shouldBeVisible)
+                        if (calendarPopout.shouldBeVisible) {
                             return Qt.rgba(1, 1, 1, 0.16);
+                        }
 
                         if (clockMouseArea.containsMouse)
                             return Qt.rgba(1, 1, 1, 0.10);
@@ -941,6 +1016,7 @@ ShellRoot {
 
                         anchors.fill: parent
                         hoverEnabled: true
+
                         cursorShape: Qt.PointingHandCursor
 
                         onClicked: {
