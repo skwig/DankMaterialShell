@@ -485,576 +485,582 @@ ShellRoot {
     /*
      * Full-width bar
      */
-    PanelWindow {
-        id: barWindow
+    Variants {
+        model: Quickshell.screens
 
-        screen: root.targetScreen
-        visible: true
+        delegate: PanelWindow {
+            id: barWindow
 
-        anchors {
-            top: true
-            left: true
-            right: true
-        }
+            property var modelData
 
-        implicitHeight: 40
-        color: "transparent"
+            screen: modelData
+            visible: true
 
-        WlrLayershell.layer: WlrLayer.Top
-        WlrLayershell.namespace: "skwig:dms-poc-bar"
-
-        function closeOtherPopouts(activePopup) {
-            if (batteryPopout !== activePopup)
-                batteryPopout.close();
-
-            if (networkPopout !== activePopup)
-                networkPopout.close();
-
-            if (bluetoothPopout !== activePopup)
-                bluetoothPopout.close();
-
-            if (audioPopout !== activePopup)
-                audioPopout.close();
-
-            if (calendarPopout !== activePopup)
-                calendarPopout.close();
-
-            if (notificationCenterPopout !== activePopup) {
-                notificationCenterPopout.notificationHistoryVisible = false;
+            anchors {
+                top: true
+                left: true
+                right: true
             }
-        }
 
-        function toggleDetailPopup(popup, button) {
-            if (!screen)
-                return;
+            implicitHeight: 40
+            color: "transparent"
 
-            const wasOpen = popup.shouldBeVisible;
+            WlrLayershell.layer: WlrLayer.Top
+            WlrLayershell.namespace: "skwig:dms-poc-bar"
 
-            closeOtherPopouts(popup);
-            PopoutService.controlCenterPopout = popup;
+            function closeOtherPopouts(activePopup) {
+                if (batteryPopout !== activePopup)
+                    batteryPopout.close();
 
-            const buttonPosition = button.mapToItem(barBackground, 0, 0);
+                if (networkPopout !== activePopup)
+                    networkPopout.close();
 
-            const triggerX = buttonPosition.x;
-            const triggerY = implicitHeight + 4;
+                if (bluetoothPopout !== activePopup)
+                    bluetoothPopout.close();
 
-            popup.setTriggerPosition(triggerX, triggerY, button.width, "right", screen, SettingsData.Position.Top, implicitHeight, 0, null);
+                if (audioPopout !== activePopup)
+                    audioPopout.close();
 
-            if (wasOpen)
-                popup.close();
-            else
-                popup.open();
-        }
+                if (calendarPopout !== activePopup)
+                    calendarPopout.close();
 
-        function toggleNotificationCenter(button) {
-            if (!screen)
-                return;
-
-            const wasOpen = notificationCenterPopout.notificationHistoryVisible || notificationCenterPopout.shouldBeVisible;
-
-            closeOtherPopouts(notificationCenterPopout);
-
-            const buttonPosition = button.mapToItem(barBackground, 0, 0);
-
-            const triggerX = buttonPosition.x;
-            const triggerY = implicitHeight + 4;
-
-            notificationCenterPopout.triggerScreen = screen;
-
-            notificationCenterPopout.setTriggerPosition(triggerX, triggerY, button.width, "right", screen, SettingsData.Position.Top, implicitHeight, 0, null);
-
-            notificationCenterPopout.notificationHistoryVisible = !wasOpen;
-        }
-
-        Rectangle {
-            id: barBackground
-
-            anchors.fill: parent
-            color: Qt.rgba(0, 0, 0, 0.4)
-
-            /* Active window title on the left side of the bar. */
-            Item {
-                id: windowTitleArea
-
-                anchors {
-                    top: parent.top
-                    left: parent.left
-                    right: workspaceSwitcher.visible ? workspaceSwitcher.left : rightButtons.left
-                    bottom: parent.bottom
-
-                    leftMargin: 12
-                    rightMargin: 12
+                if (notificationCenterPopout !== activePopup) {
+                    notificationCenterPopout.notificationHistoryVisible = false;
                 }
+            }
 
-                clip: true
+            function toggleDetailPopup(popup, button) {
+                if (!screen)
+                    return;
 
-                Row {
+                const wasOpen = popup.shouldBeVisible;
+
+                closeOtherPopouts(popup);
+                PopoutService.controlCenterPopout = popup;
+
+                const buttonPosition = button.mapToItem(barBackground, 0, 0);
+
+                const triggerX = buttonPosition.x;
+                const triggerY = implicitHeight + 4;
+
+                popup.setTriggerPosition(triggerX, triggerY, button.width, "right", screen, SettingsData.Position.Top, implicitHeight, 0, null);
+
+                if (wasOpen)
+                    popup.close();
+                else
+                    popup.open();
+            }
+
+            function toggleNotificationCenter(button) {
+                if (!screen)
+                    return;
+
+                const wasOpen = notificationCenterPopout.notificationHistoryVisible || notificationCenterPopout.shouldBeVisible;
+
+                closeOtherPopouts(notificationCenterPopout);
+
+                const buttonPosition = button.mapToItem(barBackground, 0, 0);
+
+                const triggerX = buttonPosition.x;
+                const triggerY = implicitHeight + 4;
+
+                notificationCenterPopout.triggerScreen = screen;
+
+                notificationCenterPopout.setTriggerPosition(triggerX, triggerY, button.width, "right", screen, SettingsData.Position.Top, implicitHeight, 0, null);
+
+                notificationCenterPopout.notificationHistoryVisible = !wasOpen;
+            }
+
+            Rectangle {
+                id: barBackground
+
+                anchors.fill: parent
+                color: Qt.rgba(0, 0, 0, 0.4)
+
+                /* Active window title on the left side of the bar. */
+                Item {
+                    id: windowTitleArea
+
                     anchors {
+                        top: parent.top
                         left: parent.left
-                        right: parent.right
-                        verticalCenter: parent.verticalCenter
+                        right: workspaceSwitcher.visible ? workspaceSwitcher.left : rightButtons.left
+                        bottom: parent.bottom
+
+                        leftMargin: 12
+                        rightMargin: 12
                     }
 
-                    spacing: 8
+                    clip: true
 
-                    Item {
-                        id: activeWindowIconContainer
-
-                        width: 20
-                        height: 20
-
-                        IconImage {
-                            id: activeWindowIcon
-
-                            anchors.fill: parent
-
-                            source: root.activeWindowIconSource
-
-                            visible: root.activeWindow && status === Image.Ready
-
-                            smooth: true
-                            mipmap: true
-                            asynchronous: true
+                    Row {
+                        anchors {
+                            left: parent.left
+                            right: parent.right
+                            verticalCenter: parent.verticalCenter
                         }
 
-                        DankIcon {
-                            anchors.centerIn: parent
+                        spacing: 8
 
-                            name: "desktop_windows"
-                            size: 19
-                            color: "#ffffff"
+                        Item {
+                            id: activeWindowIconContainer
 
-                            visible: !root.activeWindow
-                        }
+                            width: 20
+                            height: 20
 
-                        DankIcon {
-                            anchors.centerIn: parent
+                            IconImage {
+                                id: activeWindowIcon
 
-                            name: "sports_esports"
-                            size: 19
-                            color: "#ffffff"
+                                anchors.fill: parent
 
-                            visible: root.activeWindow && root.activeWindow.appId && activeWindowIcon.status !== Image.Ready && Paths.isSteamApp(root.activeWindow.appId)
+                                source: root.activeWindowIconSource
+
+                                visible: root.activeWindow && status === Image.Ready
+
+                                smooth: true
+                                mipmap: true
+                                asynchronous: true
+                            }
+
+                            DankIcon {
+                                anchors.centerIn: parent
+
+                                name: "desktop_windows"
+                                size: 19
+                                color: "#ffffff"
+
+                                visible: !root.activeWindow
+                            }
+
+                            DankIcon {
+                                anchors.centerIn: parent
+
+                                name: "sports_esports"
+                                size: 19
+                                color: "#ffffff"
+
+                                visible: root.activeWindow && root.activeWindow.appId && activeWindowIcon.status !== Image.Ready && Paths.isSteamApp(root.activeWindow.appId)
+                            }
+
+                            StyledText {
+                                anchors.centerIn: parent
+
+                                text: {
+                                    if (!root.activeWindow?.appId)
+                                        return "?";
+
+                                    const appName = Paths.getAppName(root.activeWindow.appId, root.activeDesktopEntry);
+
+                                    return appName ? appName.charAt(0).toUpperCase() : "?";
+                                }
+
+                                color: "#ffffff"
+                                font.pixelSize: 11
+                                font.weight: Font.Bold
+
+                                visible: root.activeWindow && root.activeWindow.appId && activeWindowIcon.status !== Image.Ready && !Paths.isSteamApp(root.activeWindow.appId)
+                            }
                         }
 
                         StyledText {
-                            anchors.centerIn: parent
+                            width: Math.max(0, parent.width - activeWindowIconContainer.width - parent.spacing)
 
-                            text: {
-                                if (!root.activeWindow?.appId)
-                                    return "?";
+                            anchors.verticalCenter: parent.verticalCenter
 
-                                const appName = Paths.getAppName(root.activeWindow.appId, root.activeDesktopEntry);
-
-                                return appName ? appName.charAt(0).toUpperCase() : "?";
-                            }
+                            text: root.activeWindowTitle
 
                             color: "#ffffff"
-                            font.pixelSize: 11
-                            font.weight: Font.Bold
+                            font.pixelSize: 15
+                            font.weight: Font.Medium
 
-                            visible: root.activeWindow && root.activeWindow.appId && activeWindowIcon.status !== Image.Ready && !Paths.isSteamApp(root.activeWindow.appId)
+                            elide: Text.ElideRight
+                            wrapMode: Text.NoWrap
+                            maximumLineCount: 1
                         }
                     }
-
-                    StyledText {
-                        width: Math.max(0, parent.width - activeWindowIconContainer.width - parent.spacing)
-
-                        anchors.verticalCenter: parent.verticalCenter
-
-                        text: root.activeWindowTitle
-
-                        color: "#ffffff"
-                        font.pixelSize: 15
-                        font.weight: Font.Medium
-
-                        elide: Text.ElideRight
-                        wrapMode: Text.NoWrap
-                        maximumLineCount: 1
-                    }
                 }
-            }
-
-            /*
-             * Stock DMS workspace switcher, centered on the screen.
-             *
-             * It reads Hyprland's reactive workspace model, highlights
-             * the active workspace, supports click-to-switch and wheel
-             * navigation, and follows the DMS workspace appearance settings.
-             */
-            QtObject {
-                id: workspaceBarConfig
-
-                property bool noBackground: true
-                property bool removeWidgetPadding: true
-                property bool widgetOutlineEnabled: false
-                property bool maximizeWidgetIcons: false
-                property bool maximizeWidgetText: false
-                property real fontScale: 1.0
-                property real iconScale: 1.0
-                property real widgetPadding: 0
-                property real widgetTransparency: 0
-            }
-
-            WorkspaceSwitcher {
-                id: workspaceSwitcher
-
-                anchors.centerIn: parent
-
-                widgetHeight: 30
-                barThickness: barWindow.implicitHeight
-                parentScreen: barWindow.screen
-                blurBarWindow: barWindow
-                barConfig: workspaceBarConfig
-            }
-
-            Row {
-                id: rightButtons
-
-                anchors {
-                    top: parent.top
-                    right: parent.right
-                    bottom: parent.bottom
-                }
-
-                spacing: 0
 
                 /*
-                 * Battery button
+                 * Stock DMS workspace switcher, centered on the screen.
+                 *
+                 * It reads Hyprland's reactive workspace model, highlights
+                 * the active workspace, supports click-to-switch and wheel
+                 * navigation, and follows the DMS workspace appearance settings.
                  */
-                Rectangle {
-                    id: batteryButton
+                QtObject {
+                    id: workspaceBarConfig
 
-                    width: 40
-                    height: rightButtons.height
-                    radius: 4
+                    property bool noBackground: true
+                    property bool removeWidgetPadding: true
+                    property bool widgetOutlineEnabled: false
+                    property bool maximizeWidgetIcons: false
+                    property bool maximizeWidgetText: false
+                    property real fontScale: 1.0
+                    property real iconScale: 1.0
+                    property real widgetPadding: 0
+                    property real widgetTransparency: 0
+                }
 
-                    color: {
-                        if (batteryPopout.shouldBeVisible)
-                            return Qt.rgba(1, 1, 1, 0.16);
+                WorkspaceSwitcher {
+                    id: workspaceSwitcher
 
-                        if (batteryMouseArea.containsMouse)
-                            return Qt.rgba(1, 1, 1, 0.10);
+                    anchors.centerIn: parent
 
-                        return "transparent";
+                    widgetHeight: 30
+                    barThickness: barWindow.implicitHeight
+                    parentScreen: barWindow.screen
+                    blurBarWindow: barWindow
+                    barConfig: workspaceBarConfig
+                }
+
+                Row {
+                    id: rightButtons
+
+                    anchors {
+                        top: parent.top
+                        right: parent.right
+                        bottom: parent.bottom
                     }
 
-                    DankIcon {
-                        anchors.centerIn: parent
+                    spacing: 0
 
-                        name: BatteryService.getBatteryIcon()
+                    /*
+                     * Battery button
+                     */
+                    Rectangle {
+                        id: batteryButton
 
-                        size: 22
+                        width: 40
+                        height: rightButtons.height
+                        radius: 4
 
                         color: {
-                            if (BatteryService.isLowBattery && !BatteryService.isCharging) {
-                                return Theme.error;
-                            }
+                            if (batteryPopout.shouldBeVisible)
+                                return Qt.rgba(1, 1, 1, 0.16);
 
-                            return "#ffffff";
+                            if (batteryMouseArea.containsMouse)
+                                return Qt.rgba(1, 1, 1, 0.10);
+
+                            return "transparent";
                         }
-                    }
-
-                    MouseArea {
-                        id: batteryMouseArea
-
-                        anchors.fill: parent
-                        hoverEnabled: true
-
-                        cursorShape: Qt.PointingHandCursor
-
-                        onClicked: {
-                            barWindow.toggleDetailPopup(batteryPopout, batteryButton);
-                        }
-                    }
-                }
-
-                /*
-                 * Network button
-                 */
-                Rectangle {
-                    id: networkButton
-
-                    width: 40
-                    height: rightButtons.height
-                    radius: 4
-
-                    color: {
-                        if (networkPopout.shouldBeVisible)
-                            return Qt.rgba(1, 1, 1, 0.16);
-
-                        if (networkMouseArea.containsMouse)
-                            return Qt.rgba(1, 1, 1, 0.10);
-
-                        return "transparent";
-                    }
-
-                    DankIcon {
-                        anchors.centerIn: parent
-
-                        name: {
-                            if (!NetworkService.networkAvailable) {
-                                return "wifi_off";
-                            }
-
-                            if (NetworkService.networkStatus === "ethernet") {
-                                return "lan";
-                            }
-
-                            return NetworkService.wifiSignalIcon || "wifi_off";
-                        }
-
-                        size: 22
-
-                        color: NetworkService.networkStatus !== "disconnected" ? "#ffffff" : Qt.rgba(1, 1, 1, 0.5)
-                    }
-
-                    MouseArea {
-                        id: networkMouseArea
-
-                        anchors.fill: parent
-                        hoverEnabled: true
-
-                        cursorShape: Qt.PointingHandCursor
-
-                        onClicked: {
-                            barWindow.toggleDetailPopup(networkPopout, networkButton);
-                        }
-                    }
-                }
-
-                /*
-                 * Bluetooth button
-                 */
-                Rectangle {
-                    id: bluetoothButton
-
-                    width: 40
-                    height: rightButtons.height
-                    radius: 4
-
-                    color: {
-                        if (bluetoothPopout.shouldBeVisible) {
-                            return Qt.rgba(1, 1, 1, 0.16);
-                        }
-
-                        if (bluetoothMouseArea.containsMouse) {
-                            return Qt.rgba(1, 1, 1, 0.10);
-                        }
-
-                        return "transparent";
-                    }
-
-                    DankIcon {
-                        anchors.centerIn: parent
-
-                        name: !BluetoothService.available ? "bluetooth_disabled" : BluetoothService.connected ? "bluetooth_connected" : "bluetooth"
-
-                        size: 22
-
-                        color: BluetoothService.enabled ? "#ffffff" : Qt.rgba(1, 1, 1, 0.5)
-                    }
-
-                    MouseArea {
-                        id: bluetoothMouseArea
-
-                        anchors.fill: parent
-                        hoverEnabled: true
-
-                        cursorShape: Qt.PointingHandCursor
-
-                        onClicked: {
-                            barWindow.toggleDetailPopup(bluetoothPopout, bluetoothButton);
-                        }
-                    }
-                }
-
-                /*
-                 * Audio button
-                 */
-                Rectangle {
-                    id: audioButton
-
-                    width: 40
-                    height: rightButtons.height
-                    radius: 4
-
-                    color: {
-                        if (audioPopout.shouldBeVisible)
-                            return Qt.rgba(1, 1, 1, 0.16);
-
-                        if (audioMouseArea.containsMouse)
-                            return Qt.rgba(1, 1, 1, 0.10);
-
-                        return "transparent";
-                    }
-
-                    DankIcon {
-                        anchors.centerIn: parent
-
-                        name: {
-                            const audio = AudioService.sink?.audio;
-
-                            if (!audio)
-                                return "volume_off";
-
-                            if (audio.muted)
-                                return "volume_off";
-
-                            if (audio.volume <= 0)
-                                return "volume_mute";
-
-                            if (audio.volume <= 0.33)
-                                return "volume_down";
-
-                            return "volume_up";
-                        }
-
-                        size: 22
-
-                        color: {
-                            const audio = AudioService.sink?.audio;
-
-                            if (!audio || audio.muted || audio.volume <= 0) {
-                                return Qt.rgba(1, 1, 1, 0.5);
-                            }
-
-                            return "#ffffff";
-                        }
-                    }
-
-                    MouseArea {
-                        id: audioMouseArea
-
-                        anchors.fill: parent
-                        hoverEnabled: true
-
-                        cursorShape: Qt.PointingHandCursor
-
-                        onClicked: {
-                            barWindow.toggleDetailPopup(audioPopout, audioButton);
-                        }
-                    }
-                }
-
-                /*
-                 * Notification button
-                 */
-                Rectangle {
-                    id: notificationButton
-
-                    width: 40
-                    height: rightButtons.height
-                    radius: 4
-
-                    readonly property bool centerVisible: notificationCenterPopout.notificationHistoryVisible || notificationCenterPopout.shouldBeVisible
-
-                    readonly property bool hasNotifications: NotificationService.notifications.length > 0
-
-                    color: {
-                        if (centerVisible)
-                            return Qt.rgba(1, 1, 1, 0.16);
-
-                        if (notificationMouseArea.containsMouse) {
-                            return Qt.rgba(1, 1, 1, 0.10);
-                        }
-
-                        return "transparent";
-                    }
-
-                    Item {
-                        anchors.centerIn: parent
-
-                        width: 24
-                        height: 24
 
                         DankIcon {
-                            id: notificationIcon
-
                             anchors.centerIn: parent
 
-                            name: SessionData.doNotDisturb ? "notifications_off" : "notifications"
+                            name: BatteryService.getBatteryIcon()
 
                             size: 22
 
-                            color: SessionData.doNotDisturb ? Theme.primary : "#ffffff"
+                            color: {
+                                if (BatteryService.isLowBattery && !BatteryService.isCharging) {
+                                    return Theme.error;
+                                }
+
+                                return "#ffffff";
+                            }
                         }
 
-                        Rectangle {
-                            width: 6
-                            height: 6
-                            radius: 3
+                        MouseArea {
+                            id: batteryMouseArea
 
-                            anchors {
-                                top: notificationIcon.top
+                            anchors.fill: parent
+                            hoverEnabled: true
 
-                                right: notificationIcon.right
+                            cursorShape: Qt.PointingHandCursor
+
+                            onClicked: {
+                                barWindow.toggleDetailPopup(batteryPopout, batteryButton);
+                            }
+                        }
+                    }
+
+                    /*
+                     * Network button
+                     */
+                    Rectangle {
+                        id: networkButton
+
+                        width: 40
+                        height: rightButtons.height
+                        radius: 4
+
+                        color: {
+                            if (networkPopout.shouldBeVisible)
+                                return Qt.rgba(1, 1, 1, 0.16);
+
+                            if (networkMouseArea.containsMouse)
+                                return Qt.rgba(1, 1, 1, 0.10);
+
+                            return "transparent";
+                        }
+
+                        DankIcon {
+                            anchors.centerIn: parent
+
+                            name: {
+                                if (!NetworkService.networkAvailable) {
+                                    return "wifi_off";
+                                }
+
+                                if (NetworkService.networkStatus === "ethernet") {
+                                    return "lan";
+                                }
+
+                                return NetworkService.wifiSignalIcon || "wifi_off";
                             }
 
-                            color: Theme.error
+                            size: 22
 
-                            visible: notificationButton.hasNotifications
+                            color: NetworkService.networkStatus !== "disconnected" ? "#ffffff" : Qt.rgba(1, 1, 1, 0.5)
+                        }
+
+                        MouseArea {
+                            id: networkMouseArea
+
+                            anchors.fill: parent
+                            hoverEnabled: true
+
+                            cursorShape: Qt.PointingHandCursor
+
+                            onClicked: {
+                                barWindow.toggleDetailPopup(networkPopout, networkButton);
+                            }
                         }
                     }
 
-                    MouseArea {
-                        id: notificationMouseArea
+                    /*
+                     * Bluetooth button
+                     */
+                    Rectangle {
+                        id: bluetoothButton
 
-                        anchors.fill: parent
-                        hoverEnabled: true
+                        width: 40
+                        height: rightButtons.height
+                        radius: 4
 
-                        cursorShape: Qt.PointingHandCursor
+                        color: {
+                            if (bluetoothPopout.shouldBeVisible) {
+                                return Qt.rgba(1, 1, 1, 0.16);
+                            }
 
-                        onClicked: {
-                            barWindow.toggleNotificationCenter(notificationButton);
-                        }
-                    }
-                }
+                            if (bluetoothMouseArea.containsMouse) {
+                                return Qt.rgba(1, 1, 1, 0.10);
+                            }
 
-                /*
-                 * Clock button
-                 */
-                Rectangle {
-                    id: clockButton
-
-                    width: Math.max(68, timeText.implicitWidth + 20)
-
-                    height: rightButtons.height
-                    radius: 4
-
-                    color: {
-                        if (calendarPopout.shouldBeVisible) {
-                            return Qt.rgba(1, 1, 1, 0.16);
+                            return "transparent";
                         }
 
-                        if (clockMouseArea.containsMouse)
-                            return Qt.rgba(1, 1, 1, 0.10);
+                        DankIcon {
+                            anchors.centerIn: parent
 
-                        return "transparent";
+                            name: !BluetoothService.available ? "bluetooth_disabled" : BluetoothService.connected ? "bluetooth_connected" : "bluetooth"
+
+                            size: 22
+
+                            color: BluetoothService.enabled ? "#ffffff" : Qt.rgba(1, 1, 1, 0.5)
+                        }
+
+                        MouseArea {
+                            id: bluetoothMouseArea
+
+                            anchors.fill: parent
+                            hoverEnabled: true
+
+                            cursorShape: Qt.PointingHandCursor
+
+                            onClicked: {
+                                barWindow.toggleDetailPopup(bluetoothPopout, bluetoothButton);
+                            }
+                        }
                     }
 
-                    StyledText {
-                        id: timeText
+                    /*
+                     * Audio button
+                     */
+                    Rectangle {
+                        id: audioButton
 
-                        anchors.centerIn: parent
+                        width: 40
+                        height: rightButtons.height
+                        radius: 4
 
-                        text: root.formatBarTime(barClock.date)
+                        color: {
+                            if (audioPopout.shouldBeVisible)
+                                return Qt.rgba(1, 1, 1, 0.16);
 
-                        color: "#ffffff"
-                        font.pixelSize: 16
-                        font.weight: Font.Medium
+                            if (audioMouseArea.containsMouse)
+                                return Qt.rgba(1, 1, 1, 0.10);
+
+                            return "transparent";
+                        }
+
+                        DankIcon {
+                            anchors.centerIn: parent
+
+                            name: {
+                                const audio = AudioService.sink?.audio;
+
+                                if (!audio)
+                                    return "volume_off";
+
+                                if (audio.muted)
+                                    return "volume_off";
+
+                                if (audio.volume <= 0)
+                                    return "volume_mute";
+
+                                if (audio.volume <= 0.33)
+                                    return "volume_down";
+
+                                return "volume_up";
+                            }
+
+                            size: 22
+
+                            color: {
+                                const audio = AudioService.sink?.audio;
+
+                                if (!audio || audio.muted || audio.volume <= 0) {
+                                    return Qt.rgba(1, 1, 1, 0.5);
+                                }
+
+                                return "#ffffff";
+                            }
+                        }
+
+                        MouseArea {
+                            id: audioMouseArea
+
+                            anchors.fill: parent
+                            hoverEnabled: true
+
+                            cursorShape: Qt.PointingHandCursor
+
+                            onClicked: {
+                                barWindow.toggleDetailPopup(audioPopout, audioButton);
+                            }
+                        }
                     }
 
-                    MouseArea {
-                        id: clockMouseArea
+                    /*
+                     * Notification button
+                     */
+                    Rectangle {
+                        id: notificationButton
 
-                        anchors.fill: parent
-                        hoverEnabled: true
+                        width: 40
+                        height: rightButtons.height
+                        radius: 4
 
-                        cursorShape: Qt.PointingHandCursor
+                        readonly property bool centerVisible: notificationCenterPopout.notificationHistoryVisible || notificationCenterPopout.shouldBeVisible
 
-                        onClicked: {
-                            barWindow.toggleDetailPopup(calendarPopout, clockButton);
+                        readonly property bool hasNotifications: NotificationService.notifications.length > 0
+
+                        color: {
+                            if (centerVisible)
+                                return Qt.rgba(1, 1, 1, 0.16);
+
+                            if (notificationMouseArea.containsMouse) {
+                                return Qt.rgba(1, 1, 1, 0.10);
+                            }
+
+                            return "transparent";
+                        }
+
+                        Item {
+                            anchors.centerIn: parent
+
+                            width: 24
+                            height: 24
+
+                            DankIcon {
+                                id: notificationIcon
+
+                                anchors.centerIn: parent
+
+                                name: SessionData.doNotDisturb ? "notifications_off" : "notifications"
+
+                                size: 22
+
+                                color: SessionData.doNotDisturb ? Theme.primary : "#ffffff"
+                            }
+
+                            Rectangle {
+                                width: 6
+                                height: 6
+                                radius: 3
+
+                                anchors {
+                                    top: notificationIcon.top
+
+                                    right: notificationIcon.right
+                                }
+
+                                color: Theme.error
+
+                                visible: notificationButton.hasNotifications
+                            }
+                        }
+
+                        MouseArea {
+                            id: notificationMouseArea
+
+                            anchors.fill: parent
+                            hoverEnabled: true
+
+                            cursorShape: Qt.PointingHandCursor
+
+                            onClicked: {
+                                barWindow.toggleNotificationCenter(notificationButton);
+                            }
+                        }
+                    }
+
+                    /*
+                     * Clock button
+                     */
+                    Rectangle {
+                        id: clockButton
+
+                        width: Math.max(68, timeText.implicitWidth + 20)
+
+                        height: rightButtons.height
+                        radius: 4
+
+                        color: {
+                            if (calendarPopout.shouldBeVisible) {
+                                return Qt.rgba(1, 1, 1, 0.16);
+                            }
+
+                            if (clockMouseArea.containsMouse)
+                                return Qt.rgba(1, 1, 1, 0.10);
+
+                            return "transparent";
+                        }
+
+                        StyledText {
+                            id: timeText
+
+                            anchors.centerIn: parent
+
+                            text: root.formatBarTime(barClock.date)
+
+                            color: "#ffffff"
+                            font.pixelSize: 16
+                            font.weight: Font.Medium
+                        }
+
+                        MouseArea {
+                            id: clockMouseArea
+
+                            anchors.fill: parent
+                            hoverEnabled: true
+
+                            cursorShape: Qt.PointingHandCursor
+
+                            onClicked: {
+                                barWindow.toggleDetailPopup(calendarPopout, clockButton);
+                            }
                         }
                     }
                 }
