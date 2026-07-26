@@ -144,18 +144,6 @@ Rectangle {
                 }
             }
 
-            DankActionButton {
-                anchors.verticalCenter: parent.verticalCenter
-                iconName: "settings"
-                buttonSize: 28
-                iconSize: 16
-                iconColor: Theme.surfaceVariantText
-                onClicked: {
-                    PopoutService.closeControlCenter();
-                    PopoutService.openSettingsWithTab(currentPreferenceIndex === 0 ? "network_ethernet" : "network_wifi");
-                }
-            }
-
             DankToggle {
                 id: wifiPowerToggle
 

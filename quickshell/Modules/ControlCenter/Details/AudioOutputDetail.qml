@@ -43,20 +43,7 @@ Rectangle {
 
         Item {
             height: 1
-            width: parent.width - headerText.width - settingsButton.width
-        }
-
-        DankActionButton {
-            id: settingsButton
-            anchors.verticalCenter: parent.verticalCenter
-            iconName: "settings"
-            buttonSize: 28
-            iconSize: 16
-            iconColor: Theme.surfaceVariantText
-            onClicked: {
-                PopoutService.closeControlCenter();
-                PopoutService.openSettingsWithTab("audio");
-            }
+            width: parent.width - headerText.width
         }
     }
 
