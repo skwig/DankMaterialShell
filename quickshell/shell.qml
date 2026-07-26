@@ -717,10 +717,6 @@ ShellRoot {
 
                 /*
                  * Stock DMS workspace switcher, centered on the screen.
-                 *
-                 * It reads Hyprland's reactive workspace model, highlights
-                 * the active workspace, supports click-to-switch and wheel
-                 * navigation, and follows the DMS workspace appearance settings.
                  */
                 QtObject {
                     id: workspaceBarConfig
@@ -863,20 +859,17 @@ ShellRoot {
                             anchors.centerIn: parent
 
                             name: {
-                                if (!NetworkService.networkAvailable) {
+                                if (!NetworkService.networkAvailable || NetworkService.networkStatus === "disconnected")
                                     return "wifi_off";
-                                }
 
-                                if (NetworkService.networkStatus === "ethernet") {
+                                if (NetworkService.networkStatus === "ethernet")
                                     return "lan";
-                                }
 
                                 return NetworkService.wifiSignalIcon || "wifi_off";
                             }
 
                             size: 22
-
-                            color: NetworkService.networkStatus !== "disconnected" ? "#ffffff" : Qt.rgba(1, 1, 1, 0.5)
+                            color: "#ffffff"
                         }
 
                         MouseArea {
@@ -918,11 +911,18 @@ ShellRoot {
                         DankIcon {
                             anchors.centerIn: parent
 
-                            name: !BluetoothService.available ? "bluetooth_disabled" : BluetoothService.connected ? "bluetooth_connected" : "bluetooth"
+                            name: {
+                                if (!BluetoothService.available || !BluetoothService.enabled)
+                                    return "bluetooth_disabled";
+
+                                if (BluetoothService.connected)
+                                    return "bluetooth_connected";
+
+                                return "bluetooth";
+                            }
 
                             size: 22
-
-                            color: BluetoothService.enabled ? "#ffffff" : Qt.rgba(1, 1, 1, 0.5)
+                            color: "#ffffff"
                         }
 
                         MouseArea {
@@ -965,14 +965,8 @@ ShellRoot {
                             name: {
                                 const audio = AudioService.sink?.audio;
 
-                                if (!audio)
+                                if (!audio || audio.muted || audio.volume <= 0)
                                     return "volume_off";
-
-                                if (audio.muted)
-                                    return "volume_off";
-
-                                if (audio.volume <= 0)
-                                    return "volume_mute";
 
                                 if (audio.volume <= 0.33)
                                     return "volume_down";
@@ -981,16 +975,7 @@ ShellRoot {
                             }
 
                             size: 22
-
-                            color: {
-                                const audio = AudioService.sink?.audio;
-
-                                if (!audio || audio.muted || audio.volume <= 0) {
-                                    return Qt.rgba(1, 1, 1, 0.5);
-                                }
-
-                                return "#ffffff";
-                            }
+                            color: "#ffffff"
                         }
 
                         MouseArea {
@@ -1057,7 +1042,6 @@ ShellRoot {
 
                                 anchors {
                                     top: notificationIcon.top
-
                                     right: notificationIcon.right
                                 }
 
