@@ -791,6 +791,8 @@ ShellRoot {
                     Rectangle {
                         id: batteryButton
 
+                        visible: BatteryService.batteryAvailable
+
                         width: 40
                         height: rightButtons.height
                         radius: 4
