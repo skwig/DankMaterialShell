@@ -5,6 +5,8 @@
 
 import QtQuick
 import Quickshell
+import Quickshell.Hyprland
+import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Widgets
 
@@ -27,6 +29,7 @@ ShellRoot {
 
     property bool osdSurfacesLoaded: false
     property int pendingOsdResumeReloads: 0
+    property string activeSubmap: ""
 
     readonly property Toplevel activeWindow: ToplevelManager.activeToplevel
 
@@ -35,6 +38,15 @@ ShellRoot {
     readonly property string activeWindowIconSource: activeWindow?.appId ? Paths.getAppIcon(activeWindow.appId, activeDesktopEntry) : ""
 
     readonly property string activeWindowTitle: activeWindow?.title || activeWindow?.appId || "Desktop"
+
+    function normalizeSubmap(value) {
+        const submap = String(value ?? "").trim();
+
+        if (submap === "" || submap === "reset" || submap === "default")
+            return "";
+
+        return submap;
+    }
 
     function formatBarTime(date) {
         if (!date)
@@ -66,6 +78,29 @@ ShellRoot {
         SettingsData.osdMediaPlaybackEnabled = true;
 
         osdStartupTimer.start();
+    }
+
+    Process {
+        id: initialSubmapProcess
+
+        command: ["hyprctl", "submap"]
+        running: true
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.activeSubmap = root.normalizeSubmap(text);
+            }
+        }
+    }
+
+    Connections {
+        target: Hyprland
+
+        function onRawEvent(event) {
+            if (event.name === "submap" || event.name === "keybinds.submap") {
+                root.activeSubmap = root.normalizeSubmap(event.data);
+            }
+        }
     }
 
     SystemClock {
@@ -711,6 +746,36 @@ ShellRoot {
                     parentScreen: barWindow.screen
                     blurBarWindow: barWindow
                     barConfig: workspaceBarConfig
+                }
+
+                Rectangle {
+                    id: submapIndicator
+
+                    anchors {
+                        right: rightButtons.left
+                        rightMargin: 6
+                        verticalCenter: parent.verticalCenter
+                    }
+
+                    visible: root.activeSubmap !== ""
+
+                    width: submapText.implicitWidth + 20
+                    height: 28
+                    radius: 4
+
+                    color: Qt.rgba(1, 1, 1, 0.14)
+
+                    StyledText {
+                        id: submapText
+
+                        anchors.centerIn: parent
+
+                        text: root.activeSubmap
+
+                        color: Theme.primary
+                        font.pixelSize: 14
+                        font.weight: Font.Medium
+                    }
                 }
 
                 Row {
