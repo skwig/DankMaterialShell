@@ -155,6 +155,22 @@ Rectangle {
                     PopoutService.openSettingsWithTab(currentPreferenceIndex === 0 ? "network_ethernet" : "network_wifi");
                 }
             }
+
+            DankToggle {
+                id: wifiPowerToggle
+
+                anchors.verticalCenter: parent.verticalCenter
+
+                hideText: true
+                visible: NetworkService.wifiAvailable
+                checked: NetworkService.wifiEnabled
+                toggling: NetworkService.wifiToggling
+                enabled: NetworkService.wifiAvailable && !NetworkService.wifiToggling
+
+                onToggled: {
+                    NetworkService.toggleWifiRadio();
+                }
+            }
         }
     }
 

@@ -136,7 +136,7 @@ Rectangle {
         }
 
         Item {
-            width: Math.max(0, parent.width - headerText.implicitWidth - scanButton.width - Theme.spacingM)
+            width: Math.max(0, parent.width - headerText.implicitWidth - (scanButton.visible ? scanButton.width : 0) - bluetoothPowerToggle.width - (scanButton.visible ? Theme.spacingS : 0) - Theme.spacingM)
             height: parent.height
         }
 
@@ -191,6 +191,28 @@ Rectangle {
                         return;
                     BluetoothService.adapter.discovering = !BluetoothService.adapter.discovering;
                 }
+            }
+        }
+
+        Item {
+            width: scanButton.visible ? Theme.spacingS : 0
+            height: parent.height
+        }
+
+        DankToggle {
+            id: bluetoothPowerToggle
+
+            anchors.verticalCenter: parent.verticalCenter
+
+            hideText: true
+            checked: BluetoothService.adapter?.enabled ?? false
+            enabled: BluetoothService.available
+
+            onToggled: nextChecked => {
+                if (!BluetoothService.adapter)
+                    return;
+
+                BluetoothService.adapter.enabled = nextChecked;
             }
         }
     }
