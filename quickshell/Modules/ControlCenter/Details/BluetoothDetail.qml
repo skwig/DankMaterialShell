@@ -15,8 +15,8 @@ Rectangle {
     implicitHeight: {
         if (height > 0)
             return height;
-        if (!BluetoothService.adapter?.enabled)
-            return headerRow.height;
+        if (!(BluetoothService.adapter?.enabled ?? false))
+            return headerRow.height + bluetoothOffContent.height + Theme.spacingM;
         return headerRow.height + bluetoothContent.height + Theme.spacingM;
     }
     radius: Theme.cornerRadius
@@ -213,6 +213,88 @@ Rectangle {
                     return;
 
                 BluetoothService.adapter.enabled = nextChecked;
+            }
+        }
+    }
+
+    Item {
+        id: bluetoothOffContent
+
+        anchors.top: headerRow.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.margins: Theme.spacingM
+        anchors.topMargin: Theme.spacingM
+
+        visible: !(BluetoothService.adapter?.enabled ?? false)
+        height: visible ? bluetoothOffColumn.implicitHeight + Theme.spacingM * 2 : 0
+
+        Column {
+            id: bluetoothOffColumn
+
+            anchors.centerIn: parent
+
+            width: parent.width
+            spacing: Theme.spacingL
+
+            DankIcon {
+                anchors.horizontalCenter: parent.horizontalCenter
+
+                name: "bluetooth_disabled"
+                size: 48
+                color: Theme.surfaceTextSecondary
+            }
+
+            StyledText {
+                anchors.horizontalCenter: parent.horizontalCenter
+
+                text: I18n.tr("Bluetooth is off")
+                font.pixelSize: Theme.fontSizeLarge
+                font.weight: Font.Medium
+                color: Theme.surfaceText
+                horizontalAlignment: Text.AlignHCenter
+            }
+
+            Rectangle {
+                anchors.horizontalCenter: parent.horizontalCenter
+
+                width: enableBluetoothLabel.implicitWidth + Theme.spacingL * 2
+
+                height: enableBluetoothLabel.implicitHeight + Theme.spacingM * 2
+
+                radius: height / 2
+
+                color: enableBluetoothButton.containsMouse ? Theme.primaryHover : Theme.primaryHoverLight
+
+                border.width: 0
+                border.color: Theme.primary
+
+                StyledText {
+                    id: enableBluetoothLabel
+
+                    anchors.centerIn: parent
+
+                    text: I18n.tr("Enable Bluetooth")
+                    color: Theme.primary
+                    font.pixelSize: Theme.fontSizeMedium
+                    font.weight: Font.Medium
+                }
+
+                MouseArea {
+                    id: enableBluetoothButton
+
+                    anchors.fill: parent
+                    hoverEnabled: true
+
+                    cursorShape: Qt.PointingHandCursor
+
+                    onClicked: {
+                        if (!BluetoothService.adapter)
+                            return;
+
+                        BluetoothService.adapter.enabled = true;
+                    }
+                }
             }
         }
     }
