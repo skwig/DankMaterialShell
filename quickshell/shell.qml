@@ -75,9 +75,6 @@ ShellRoot {
 
     /*
      * Network popup
-     *
-     * NetworkDetail is used directly from DMS. With no DMS_SOCKET,
-     * NetworkService selects LegacyNetworkService automatically.
      */
     DankPopoutStandalone {
         id: networkPopout
@@ -106,8 +103,43 @@ ShellRoot {
     }
 
     /*
-     * Required by NetworkDetail when connecting to a secured,
-     * previously unsaved Wi-Fi network.
+     * Audio popup
+     */
+    DankPopoutStandalone {
+        id: audioPopout
+
+        screen: root.targetScreen
+        layerNamespace: "skwig:audio-poc"
+
+        popupWidth: 520
+        popupHeight: Math.min(620, Math.max(360, (screen?.height ?? 1080) - 96))
+
+        positioning: ""
+        fullHeightSurface: true
+
+        onBackgroundClicked: close()
+
+        Component.onDestruction: {
+            if (PopoutService.controlCenterPopout === audioPopout)
+                PopoutService.controlCenterPopout = null;
+        }
+
+        content: Component {
+            AudioOutputDetail {
+                anchors.fill: parent
+
+                /*
+                 * Force the detail component to include its own master
+                 * volume slider. In normal DMS this can be provided by
+                 * a separate control-center widget.
+                 */
+                hasVolumeSliderInCC: false
+            }
+        }
+    }
+
+    /*
+     * Needed by NetworkDetail for password-protected Wi-Fi.
      */
     LazyLoader {
         id: wifiPasswordModalLoader
@@ -140,45 +172,7 @@ ShellRoot {
     }
 
     /*
-     * This is mainly useful when the DMS backend is retained.
-     * It does no harm with LegacyNetworkService and keeps the
-     * wiring compatible with DMS network credential prompts.
-     */
-    property string lastCredentialsToken: ""
-
-    Connections {
-        target: NetworkService
-
-        function onCredentialsNeeded(token, ssid, setting, fields, hints, reason, connectionType, connectionName, vpnService, fieldsInfo) {
-            const modal = wifiPasswordModalLoader.loadedModal;
-
-            const alreadyShown = modal !== null && modal.shouldBeVisible;
-
-            if (alreadyShown && token === root.lastCredentialsToken) {
-                return;
-            }
-
-            wifiPasswordModalLoader.active = true;
-
-            Qt.callLater(() => {
-                const loadedModal = wifiPasswordModalLoader.loadedModal;
-
-                if (!loadedModal)
-                    return;
-
-                if (alreadyShown && root.lastCredentialsToken !== "" && root.lastCredentialsToken !== token) {
-                    NetworkService.cancelCredentials(root.lastCredentialsToken);
-                }
-
-                root.lastCredentialsToken = token;
-
-                loadedModal.showFromPrompt(token, ssid, setting, fields, hints, reason, connectionType, connectionName, vpnService, fieldsInfo);
-            });
-        }
-    }
-
-    /*
-     * Temporary full-width bar.
+     * Full-width temporary bar.
      */
     PanelWindow {
         id: barWindow
@@ -198,26 +192,34 @@ ShellRoot {
         WlrLayershell.layer: WlrLayer.Top
         WlrLayershell.namespace: "skwig:dms-poc-bar"
 
-        /*
-         * Both DMS detail components assume they are the current
-         * control-center popout. Point PopoutService at whichever
-         * standalone popup is currently being opened.
-         */
-        function toggleDetailPopup(popup, otherPopup, button) {
+        function closeOtherPopouts(activePopup) {
+            if (networkPopout !== activePopup)
+                networkPopout.close();
+
+            if (bluetoothPopout !== activePopup)
+                bluetoothPopout.close();
+
+            if (audioPopout !== activePopup)
+                audioPopout.close();
+        }
+
+        function toggleDetailPopup(popup, button) {
             if (!screen)
                 return;
 
-            const popupWasOpen = popup.shouldBeVisible;
+            const wasOpen = popup.shouldBeVisible;
 
-            if (otherPopup.shouldBeVisible || otherPopup.isClosing) {
-                otherPopup.close();
-            }
+            closeOtherPopouts(popup);
 
+            /*
+             * DMS detail components call closeControlCenter(), so point
+             * that service at whichever standalone popup is active.
+             */
             PopoutService.controlCenterPopout = popup;
 
             /*
-             * button.x alone is relative to rightButtons, not the
-             * screen. Map it into the full-width bar background.
+             * The buttons live inside a Row. Convert their position into
+             * coordinates relative to the full-width bar background.
              */
             const buttonPosition = button.mapToItem(barBackground, 0, 0);
 
@@ -226,7 +228,7 @@ ShellRoot {
 
             popup.setTriggerPosition(triggerX, triggerY, button.width, "right", screen, SettingsData.Position.Top, implicitHeight, 0, null);
 
-            if (popupWasOpen)
+            if (wasOpen)
                 popup.close();
             else
                 popup.open();
@@ -296,7 +298,7 @@ ShellRoot {
                         cursorShape: Qt.PointingHandCursor
 
                         onClicked: {
-                            barWindow.toggleDetailPopup(networkPopout, bluetoothPopout, networkButton);
+                            barWindow.toggleDetailPopup(networkPopout, networkButton);
                         }
                     }
                 }
@@ -339,7 +341,74 @@ ShellRoot {
                         cursorShape: Qt.PointingHandCursor
 
                         onClicked: {
-                            barWindow.toggleDetailPopup(bluetoothPopout, networkPopout, bluetoothButton);
+                            barWindow.toggleDetailPopup(bluetoothPopout, bluetoothButton);
+                        }
+                    }
+                }
+
+                /*
+                 * Audio output button
+                 */
+                Rectangle {
+                    id: audioButton
+
+                    width: 40
+                    height: rightButtons.height
+                    radius: 4
+
+                    color: {
+                        if (audioPopout.shouldBeVisible)
+                            return Qt.rgba(1, 1, 1, 0.16);
+
+                        if (audioMouseArea.containsMouse)
+                            return Qt.rgba(1, 1, 1, 0.10);
+
+                        return "transparent";
+                    }
+
+                    DankIcon {
+                        anchors.centerIn: parent
+
+                        name: {
+                            const audio = AudioService.sink?.audio;
+
+                            if (!audio)
+                                return "volume_off";
+
+                            if (audio.muted)
+                                return "volume_off";
+
+                            if (audio.volume <= 0)
+                                return "volume_mute";
+
+                            if (audio.volume <= 0.33)
+                                return "volume_down";
+
+                            return "volume_up";
+                        }
+
+                        size: 22
+
+                        color: {
+                            const audio = AudioService.sink?.audio;
+
+                            if (!audio || audio.muted || audio.volume <= 0) {
+                                return Qt.rgba(1, 1, 1, 0.5);
+                            }
+
+                            return "#ffffff";
+                        }
+                    }
+
+                    MouseArea {
+                        id: audioMouseArea
+
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+
+                        onClicked: {
+                            barWindow.toggleDetailPopup(audioPopout, audioButton);
                         }
                     }
                 }
