@@ -7,3 +7,4 @@
 - skryt baterku ak nema baterku
 - baterkovy power draw?
 - vypnut notification sound / vypnut ak notifikacia sama nema sound
+- notif sound na tu kvapku
