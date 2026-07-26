@@ -16,11 +16,15 @@ import qs.Modules.ControlCenter.Details
 import qs.Modules.DankDash.Overview
 import qs.Modules.Notifications.Center
 import qs.Modules.Notifications.Popup
+import qs.Modules.OSD
 
 ShellRoot {
     id: root
 
     readonly property var targetScreen: Quickshell.screens.length > 0 ? Quickshell.screens[0] : null
+
+    property bool osdSurfacesLoaded: false
+    property int pendingOsdResumeReloads: 0
 
     function formatBarTime(date) {
         if (!date)
@@ -39,9 +43,70 @@ ShellRoot {
         return String(displayHours) + ":" + minutes + suffix;
     }
 
+    function recreateOsdSurfaces() {
+        OSDManager.currentOSDsByScreen = ({});
+
+        osdSurfacesLoaded = false;
+        osdSurfaceReloadTimer.restart();
+    }
+
+    /*
+     * DMS enables MediaVolumeOSD by default but disables
+     * MediaPlaybackOSD by default. Force both on for this shell.
+     */
+    Component.onCompleted: {
+        SettingsData.osdMediaVolumeEnabled = true;
+        SettingsData.osdMediaPlaybackEnabled = true;
+
+        osdStartupTimer.start();
+    }
+
     SystemClock {
         id: barClock
         precision: SystemClock.Minutes
+    }
+
+    Timer {
+        id: osdStartupTimer
+
+        interval: 1000
+        repeat: false
+
+        onTriggered: {
+            root.osdSurfacesLoaded = true;
+        }
+    }
+
+    Timer {
+        id: osdSurfaceReloadTimer
+
+        interval: 120
+        repeat: false
+
+        onTriggered: {
+            root.osdSurfacesLoaded = true;
+        }
+    }
+
+    Timer {
+        id: osdResumeRecreateTimer
+
+        interval: 400
+        repeat: false
+
+        onTriggered: {
+            root.recreateOsdSurfaces();
+            root.pendingOsdResumeReloads--;
+
+            if (root.pendingOsdResumeReloads <= 0) {
+                root.pendingOsdResumeReloads = 0;
+                interval = 400;
+                return;
+            }
+
+            interval = 1400;
+            restart();
+        }
     }
 
     Connections {
@@ -50,6 +115,10 @@ ShellRoot {
         function onSessionResumed() {
             barClock.enabled = false;
             barClock.enabled = true;
+
+            root.pendingOsdResumeReloads = 2;
+            osdResumeRecreateTimer.interval = 400;
+            osdResumeRecreateTimer.restart();
         }
     }
 
@@ -142,7 +211,7 @@ ShellRoot {
     }
 
     /*
-     * Audio output popup
+     * Audio popup
      */
     DankPopoutStandalone {
         id: audioPopout
@@ -168,11 +237,6 @@ ShellRoot {
         content: Component {
             AudioOutputDetail {
                 anchors.fill: parent
-
-                /*
-                 * Show the main volume slider inside this standalone
-                 * detail popup.
-                 */
                 hasVolumeSliderInCC: false
             }
         }
@@ -272,15 +336,7 @@ ShellRoot {
     }
 
     /*
-     * DMS notification center.
-     *
-     * This component already contains:
-     * - Current notifications
-     * - Persistent notification history
-     * - DND controls
-     * - Notification settings
-     * - Clear and dismiss actions
-     * - Keyboard navigation
+     * Notification center
      */
     NotificationCenterPopout {
         id: notificationCenterPopout
@@ -299,26 +355,95 @@ ShellRoot {
     }
 
     /*
-     * DMS toast notification windows.
-     *
-     * NotificationService owns the Freedesktop notification server.
-     * These managers create the visible transient popup cards on
-     * each monitor.
+     * Incoming notification toast windows
      */
     Variants {
         model: Quickshell.screens
 
         delegate: NotificationPopupManager {
-            /*
-             * Keep top-positioned notifications below the 40px bar
-             * with a small gap.
-             */
             topMargin: 44
         }
     }
 
     /*
-     * Needed by NetworkDetail for password-protected Wi-Fi.
+     * Shared DMS OSD surfaces
+     */
+    Loader {
+        id: osdSurfacesLoader
+
+        active: root.osdSurfacesLoaded
+        asynchronous: false
+
+        sourceComponent: Component {
+            Item {
+                /*
+                 * Default PipeWire output volume
+                 */
+                Variants {
+                    model: SettingsData.getFilteredScreens("osd")
+
+                    delegate: VolumeOSD {}
+                }
+
+                /*
+                 * Active MPRIS player's own volume
+                 */
+                Variants {
+                    model: SettingsData.getFilteredScreens("osd")
+
+                    delegate: MediaVolumeOSD {}
+                }
+
+                /*
+                 * Active MPRIS player's track and playback state
+                 */
+                Variants {
+                    model: SettingsData.getFilteredScreens("osd")
+
+                    delegate: MediaPlaybackOSD {}
+                }
+
+                /*
+                 * Microphone volume and mute
+                 */
+                Variants {
+                    model: SettingsData.getFilteredScreens("osd")
+
+                    delegate: MicVolumeOSD {}
+                }
+
+                /*
+                 * Display brightness
+                 */
+                Variants {
+                    model: SettingsData.getFilteredScreens("osd")
+
+                    delegate: BrightnessOSD {}
+                }
+
+                /*
+                 * Power-profile changes
+                 */
+                Variants {
+                    model: SettingsData.osdPowerProfileEnabled ? SettingsData.getFilteredScreens("osd") : []
+
+                    delegate: PowerProfileOSD {}
+                }
+
+                /*
+                 * Current audio-output device
+                 */
+                Variants {
+                    model: SettingsData.getFilteredScreens("osd")
+
+                    delegate: AudioOutputOSD {}
+                }
+            }
+        }
+    }
+
+    /*
+     * Needed by NetworkDetail for password-protected Wi-Fi
      */
     LazyLoader {
         id: wifiPasswordModalLoader
@@ -351,7 +476,7 @@ ShellRoot {
     }
 
     /*
-     * Full-width temporary bar
+     * Full-width bar
      */
     PanelWindow {
         id: barWindow
@@ -371,12 +496,6 @@ ShellRoot {
         WlrLayershell.layer: WlrLayer.Top
         WlrLayershell.namespace: "skwig:dms-poc-bar"
 
-        /*
-         * Closes everything except the popup being opened.
-         *
-         * NotificationCenterPopout has its own visibility property,
-         * so it is closed through notificationHistoryVisible.
-         */
         function closeOtherPopouts(activePopup) {
             if (batteryPopout !== activePopup)
                 batteryPopout.close();
@@ -398,9 +517,6 @@ ShellRoot {
             }
         }
 
-        /*
-         * Opens one of the standalone detail popups.
-         */
         function toggleDetailPopup(popup, button) {
             if (!screen)
                 return;
@@ -409,10 +525,6 @@ ShellRoot {
 
             closeOtherPopouts(popup);
 
-            /*
-             * Reused DMS detail components can call
-             * PopoutService.closeControlCenter().
-             */
             PopoutService.controlCenterPopout = popup;
 
             const buttonPosition = button.mapToItem(barBackground, 0, 0);
@@ -428,14 +540,6 @@ ShellRoot {
                 popup.open();
         }
 
-        /*
-         * Opens the DMS NotificationCenterPopout.
-         *
-         * Unlike the simpler standalone detail popups, the
-         * notification center uses notificationHistoryVisible so it
-         * can calculate its content height before creating the layer
-         * surface.
-         */
         function toggleNotificationCenter(button) {
             if (!screen)
                 return;
@@ -474,7 +578,7 @@ ShellRoot {
                 spacing: 0
 
                 /*
-                 * Battery and power-profile button
+                 * Battery button
                  */
                 Rectangle {
                     id: batteryButton
@@ -617,7 +721,7 @@ ShellRoot {
                 }
 
                 /*
-                 * Audio output button
+                 * Audio button
                  */
                 Rectangle {
                     id: audioButton
@@ -684,7 +788,7 @@ ShellRoot {
                 }
 
                 /*
-                 * Notification center button
+                 * Notification button
                  */
                 Rectangle {
                     id: notificationButton
@@ -701,15 +805,15 @@ ShellRoot {
                         if (centerVisible)
                             return Qt.rgba(1, 1, 1, 0.16);
 
-                        if (notificationMouseArea.containsMouse) {
+                        if (notificationMouseArea.containsMouse)
                             return Qt.rgba(1, 1, 1, 0.10);
-                        }
 
                         return "transparent";
                     }
 
                     Item {
                         anchors.centerIn: parent
+
                         width: 24
                         height: 24
 
@@ -725,10 +829,6 @@ ShellRoot {
                             color: SessionData.doNotDisturb ? Theme.primary : "#ffffff"
                         }
 
-                        /*
-                         * Matches DMS's unread/current notification
-                         * indicator.
-                         */
                         Rectangle {
                             width: 6
                             height: 6
@@ -740,7 +840,6 @@ ShellRoot {
                             }
 
                             color: Theme.error
-
                             visible: notificationButton.hasNotifications
                         }
                     }
@@ -751,20 +850,9 @@ ShellRoot {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        acceptedButtons: Qt.LeftButton | Qt.RightButton
 
-                        onClicked: mouse => {
-                            /*
-                             * Left click opens the notification center.
-                             *
-                             * DND duration selection normally lives in
-                             * DMS's reusable bar button's right-click
-                             * handler. The notification center itself
-                             * also exposes DND controls and settings.
-                             */
-                            if (mouse.button === Qt.LeftButton) {
-                                barWindow.toggleNotificationCenter(notificationButton);
-                            }
+                        onClicked: {
+                            barWindow.toggleNotificationCenter(notificationButton);
                         }
                     }
                 }
@@ -798,7 +886,6 @@ ShellRoot {
                         text: root.formatBarTime(barClock.date)
 
                         color: "#ffffff"
-
                         font.pixelSize: 16
                         font.weight: Font.Medium
                     }
