@@ -45,16 +45,22 @@ ShellRoot {
 
     function recreateOsdSurfaces() {
         OSDManager.currentOSDsByScreen = ({});
-
         osdSurfacesLoaded = false;
         osdSurfaceReloadTimer.restart();
     }
 
-    /*
-     * DMS enables MediaVolumeOSD by default but disables
-     * MediaPlaybackOSD by default. Force both on for this shell.
-     */
     Component.onCompleted: {
+        /*
+         * In DankOSD:
+         *
+         * Position.Left =
+         *     left-aligned horizontally
+         *     top-aligned vertically
+         *
+         * Therefore this is the top-left OSD position.
+         */
+        SettingsData.osdPosition = SettingsData.Position.Left;
+
         SettingsData.osdMediaVolumeEnabled = true;
         SettingsData.osdMediaPlaybackEnabled = true;
 
@@ -211,7 +217,7 @@ ShellRoot {
     }
 
     /*
-     * Audio popup
+     * Audio output popup
      */
     DankPopoutStandalone {
         id: audioPopout
@@ -366,7 +372,7 @@ ShellRoot {
     }
 
     /*
-     * Shared DMS OSD surfaces
+     * DMS OSD surfaces
      */
     Loader {
         id: osdSurfacesLoader
@@ -395,7 +401,7 @@ ShellRoot {
                 }
 
                 /*
-                 * Active MPRIS player's track and playback state
+                 * Active MPRIS track and playback state
                  */
                 Variants {
                     model: SettingsData.getFilteredScreens("osd")
@@ -524,7 +530,6 @@ ShellRoot {
             const wasOpen = popup.shouldBeVisible;
 
             closeOtherPopouts(popup);
-
             PopoutService.controlCenterPopout = popup;
 
             const buttonPosition = button.mapToItem(barBackground, 0, 0);
@@ -805,8 +810,9 @@ ShellRoot {
                         if (centerVisible)
                             return Qt.rgba(1, 1, 1, 0.16);
 
-                        if (notificationMouseArea.containsMouse)
+                        if (notificationMouseArea.containsMouse) {
                             return Qt.rgba(1, 1, 1, 0.10);
+                        }
 
                         return "transparent";
                     }
@@ -840,6 +846,7 @@ ShellRoot {
                             }
 
                             color: Theme.error
+
                             visible: notificationButton.hasNotifications
                         }
                     }
