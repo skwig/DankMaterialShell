@@ -14,6 +14,7 @@ import qs.Services
 import qs.Widgets
 
 import qs.Modules.ControlCenter.Details
+import qs.Modules.DankBar.Widgets
 import qs.Modules.DankDash.Overview
 import qs.Modules.Notifications.Center
 import qs.Modules.Notifications.Popup
@@ -578,7 +579,7 @@ ShellRoot {
                 anchors {
                     top: parent.top
                     left: parent.left
-                    right: rightButtons.left
+                    right: workspaceSwitcher.visible ? workspaceSwitcher.left : rightButtons.left
                     bottom: parent.bottom
 
                     leftMargin: 12
@@ -672,6 +673,39 @@ ShellRoot {
                         maximumLineCount: 1
                     }
                 }
+            }
+
+            /*
+             * Stock DMS workspace switcher, centered on the screen.
+             *
+             * It reads Hyprland's reactive workspace model, highlights
+             * the active workspace, supports click-to-switch and wheel
+             * navigation, and follows the DMS workspace appearance settings.
+             */
+            QtObject {
+                id: workspaceBarConfig
+
+                property bool noBackground: true
+                property bool removeWidgetPadding: true
+                property bool widgetOutlineEnabled: false
+                property bool maximizeWidgetIcons: false
+                property bool maximizeWidgetText: false
+                property real fontScale: 1.0
+                property real iconScale: 1.0
+                property real widgetPadding: 0
+                property real widgetTransparency: 0
+            }
+
+            WorkspaceSwitcher {
+                id: workspaceSwitcher
+
+                anchors.centerIn: parent
+
+                widgetHeight: 30
+                barThickness: barWindow.implicitHeight
+                parentScreen: barWindow.screen
+                blurBarWindow: barWindow
+                barConfig: workspaceBarConfig
             }
 
             Row {
