@@ -11,8 +11,11 @@ import qs.Common
 import qs.Modals
 import qs.Services
 import qs.Widgets
+
 import qs.Modules.ControlCenter.Details
 import qs.Modules.DankDash.Overview
+import qs.Modules.Notifications.Center
+import qs.Modules.Notifications.Popup
 
 ShellRoot {
     id: root
@@ -38,7 +41,6 @@ ShellRoot {
 
     SystemClock {
         id: barClock
-
         precision: SystemClock.Minutes
     }
 
@@ -61,6 +63,7 @@ ShellRoot {
         layerNamespace: "skwig:bluetooth-poc"
 
         popupWidth: 520
+
         popupHeight: Math.min(620, Math.max(360, (screen?.height ?? 1080) - 96))
 
         positioning: ""
@@ -117,6 +120,7 @@ ShellRoot {
         layerNamespace: "skwig:network-poc"
 
         popupWidth: 520
+
         popupHeight: Math.min(620, Math.max(360, (screen?.height ?? 1080) - 96))
 
         positioning: ""
@@ -147,6 +151,7 @@ ShellRoot {
         layerNamespace: "skwig:audio-poc"
 
         popupWidth: 520
+
         popupHeight: Math.min(620, Math.max(360, (screen?.height ?? 1080) - 96))
 
         positioning: ""
@@ -165,8 +170,8 @@ ShellRoot {
                 anchors.fill: parent
 
                 /*
-                 * Show the master output volume slider inside this
-                 * standalone detail popup.
+                 * Show the main volume slider inside this standalone
+                 * detail popup.
                  */
                 hasVolumeSliderInCC: false
             }
@@ -243,7 +248,6 @@ ShellRoot {
                 Row {
                     anchors.fill: parent
                     anchors.margins: Theme.spacingM
-
                     spacing: Theme.spacingM
 
                     ClockCard {
@@ -264,6 +268,52 @@ ShellRoot {
                     }
                 }
             }
+        }
+    }
+
+    /*
+     * DMS notification center.
+     *
+     * This component already contains:
+     * - Current notifications
+     * - Persistent notification history
+     * - DND controls
+     * - Notification settings
+     * - Clear and dismiss actions
+     * - Keyboard navigation
+     */
+    NotificationCenterPopout {
+        id: notificationCenterPopout
+
+        triggerScreen: root.targetScreen
+
+        Component.onCompleted: {
+            PopoutService.notificationCenterPopout = notificationCenterPopout;
+        }
+
+        Component.onDestruction: {
+            if (PopoutService.notificationCenterPopout === notificationCenterPopout) {
+                PopoutService.notificationCenterPopout = null;
+            }
+        }
+    }
+
+    /*
+     * DMS toast notification windows.
+     *
+     * NotificationService owns the Freedesktop notification server.
+     * These managers create the visible transient popup cards on
+     * each monitor.
+     */
+    Variants {
+        model: Quickshell.screens
+
+        delegate: NotificationPopupManager {
+            /*
+             * Keep top-positioned notifications below the 40px bar
+             * with a small gap.
+             */
+            topMargin: 44
         }
     }
 
@@ -321,6 +371,12 @@ ShellRoot {
         WlrLayershell.layer: WlrLayer.Top
         WlrLayershell.namespace: "skwig:dms-poc-bar"
 
+        /*
+         * Closes everything except the popup being opened.
+         *
+         * NotificationCenterPopout has its own visibility property,
+         * so it is closed through notificationHistoryVisible.
+         */
         function closeOtherPopouts(activePopup) {
             if (batteryPopout !== activePopup)
                 batteryPopout.close();
@@ -336,8 +392,15 @@ ShellRoot {
 
             if (calendarPopout !== activePopup)
                 calendarPopout.close();
+
+            if (notificationCenterPopout !== activePopup) {
+                notificationCenterPopout.notificationHistoryVisible = false;
+            }
         }
 
+        /*
+         * Opens one of the standalone detail popups.
+         */
         function toggleDetailPopup(popup, button) {
             if (!screen)
                 return;
@@ -347,15 +410,11 @@ ShellRoot {
             closeOtherPopouts(popup);
 
             /*
-             * Reused DMS components may call
+             * Reused DMS detail components can call
              * PopoutService.closeControlCenter().
              */
             PopoutService.controlCenterPopout = popup;
 
-            /*
-             * Convert the button's position from the Row into
-             * full-screen bar coordinates.
-             */
             const buttonPosition = button.mapToItem(barBackground, 0, 0);
 
             const triggerX = buttonPosition.x;
@@ -367,6 +426,34 @@ ShellRoot {
                 popup.close();
             else
                 popup.open();
+        }
+
+        /*
+         * Opens the DMS NotificationCenterPopout.
+         *
+         * Unlike the simpler standalone detail popups, the
+         * notification center uses notificationHistoryVisible so it
+         * can calculate its content height before creating the layer
+         * surface.
+         */
+        function toggleNotificationCenter(button) {
+            if (!screen)
+                return;
+
+            const wasOpen = notificationCenterPopout.notificationHistoryVisible || notificationCenterPopout.shouldBeVisible;
+
+            closeOtherPopouts(notificationCenterPopout);
+
+            const buttonPosition = button.mapToItem(barBackground, 0, 0);
+
+            const triggerX = buttonPosition.x;
+            const triggerY = implicitHeight + 4;
+
+            notificationCenterPopout.triggerScreen = screen;
+
+            notificationCenterPopout.setTriggerPosition(triggerX, triggerY, button.width, "right", screen, SettingsData.Position.Top, implicitHeight, 0, null);
+
+            notificationCenterPopout.notificationHistoryVisible = !wasOpen;
         }
 
         Rectangle {
@@ -410,7 +497,6 @@ ShellRoot {
                         anchors.centerIn: parent
 
                         name: BatteryService.getBatteryIcon()
-
                         size: 22
 
                         color: {
@@ -598,6 +684,92 @@ ShellRoot {
                 }
 
                 /*
+                 * Notification center button
+                 */
+                Rectangle {
+                    id: notificationButton
+
+                    width: 40
+                    height: rightButtons.height
+                    radius: 4
+
+                    readonly property bool centerVisible: notificationCenterPopout.notificationHistoryVisible || notificationCenterPopout.shouldBeVisible
+
+                    readonly property bool hasNotifications: NotificationService.notifications.length > 0
+
+                    color: {
+                        if (centerVisible)
+                            return Qt.rgba(1, 1, 1, 0.16);
+
+                        if (notificationMouseArea.containsMouse) {
+                            return Qt.rgba(1, 1, 1, 0.10);
+                        }
+
+                        return "transparent";
+                    }
+
+                    Item {
+                        anchors.centerIn: parent
+                        width: 24
+                        height: 24
+
+                        DankIcon {
+                            id: notificationIcon
+
+                            anchors.centerIn: parent
+
+                            name: SessionData.doNotDisturb ? "notifications_off" : "notifications"
+
+                            size: 22
+
+                            color: SessionData.doNotDisturb ? Theme.primary : "#ffffff"
+                        }
+
+                        /*
+                         * Matches DMS's unread/current notification
+                         * indicator.
+                         */
+                        Rectangle {
+                            width: 6
+                            height: 6
+                            radius: 3
+
+                            anchors {
+                                top: notificationIcon.top
+                                right: notificationIcon.right
+                            }
+
+                            color: Theme.error
+
+                            visible: notificationButton.hasNotifications
+                        }
+                    }
+
+                    MouseArea {
+                        id: notificationMouseArea
+
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+
+                        onClicked: mouse => {
+                            /*
+                             * Left click opens the notification center.
+                             *
+                             * DND duration selection normally lives in
+                             * DMS's reusable bar button's right-click
+                             * handler. The notification center itself
+                             * also exposes DND controls and settings.
+                             */
+                            if (mouse.button === Qt.LeftButton) {
+                                barWindow.toggleNotificationCenter(notificationButton);
+                            }
+                        }
+                    }
+                }
+
+                /*
                  * Clock button
                  */
                 Rectangle {
@@ -624,6 +796,7 @@ ShellRoot {
                         anchors.centerIn: parent
 
                         text: root.formatBarTime(barClock.date)
+
                         color: "#ffffff"
 
                         font.pixelSize: 16
