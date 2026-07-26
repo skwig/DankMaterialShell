@@ -69,8 +69,9 @@ ShellRoot {
         onBackgroundClicked: close()
 
         Component.onDestruction: {
-            if (PopoutService.controlCenterPopout === bluetoothPopout)
+            if (PopoutService.controlCenterPopout === bluetoothPopout) {
                 PopoutService.controlCenterPopout = null;
+            }
         }
 
         onShouldBeVisibleChanged: {
@@ -124,8 +125,9 @@ ShellRoot {
         onBackgroundClicked: close()
 
         Component.onDestruction: {
-            if (PopoutService.controlCenterPopout === networkPopout)
+            if (PopoutService.controlCenterPopout === networkPopout) {
                 PopoutService.controlCenterPopout = null;
+            }
         }
 
         content: Component {
@@ -136,7 +138,7 @@ ShellRoot {
     }
 
     /*
-     * Audio popup
+     * Audio output popup
      */
     DankPopoutStandalone {
         id: audioPopout
@@ -153,8 +155,9 @@ ShellRoot {
         onBackgroundClicked: close()
 
         Component.onDestruction: {
-            if (PopoutService.controlCenterPopout === audioPopout)
+            if (PopoutService.controlCenterPopout === audioPopout) {
                 PopoutService.controlCenterPopout = null;
+            }
         }
 
         content: Component {
@@ -162,10 +165,51 @@ ShellRoot {
                 anchors.fill: parent
 
                 /*
-                 * Show the master volume slider inside this standalone
-                 * detail popup.
+                 * Show the master output volume slider inside this
+                 * standalone detail popup.
                  */
                 hasVolumeSliderInCC: false
+            }
+        }
+    }
+
+    /*
+     * Battery and power-profile popup
+     */
+    DankPopoutStandalone {
+        id: batteryPopout
+
+        property real desiredContentHeight: 360
+
+        screen: root.targetScreen
+        layerNamespace: "skwig:battery-poc"
+
+        popupWidth: 520
+
+        popupHeight: Math.min(Math.max(320, desiredContentHeight), Math.max(320, (screen?.height ?? 1080) - 96))
+
+        positioning: ""
+        fullHeightSurface: true
+
+        onBackgroundClicked: close()
+
+        Component.onDestruction: {
+            if (PopoutService.controlCenterPopout === batteryPopout) {
+                PopoutService.controlCenterPopout = null;
+            }
+        }
+
+        content: Component {
+            BatteryDetail {
+                anchors.fill: parent
+
+                Component.onCompleted: {
+                    batteryPopout.desiredContentHeight = implicitHeight;
+                }
+
+                onImplicitHeightChanged: {
+                    batteryPopout.desiredContentHeight = implicitHeight;
+                }
             }
         }
     }
@@ -189,8 +233,9 @@ ShellRoot {
         onBackgroundClicked: close()
 
         Component.onDestruction: {
-            if (PopoutService.controlCenterPopout === calendarPopout)
+            if (PopoutService.controlCenterPopout === calendarPopout) {
                 PopoutService.controlCenterPopout = null;
+            }
         }
 
         content: Component {
@@ -198,6 +243,7 @@ ShellRoot {
                 Row {
                     anchors.fill: parent
                     anchors.margins: Theme.spacingM
+
                     spacing: Theme.spacingM
 
                     ClockCard {
@@ -255,7 +301,7 @@ ShellRoot {
     }
 
     /*
-     * Full-width temporary bar.
+     * Full-width temporary bar
      */
     PanelWindow {
         id: barWindow
@@ -276,6 +322,9 @@ ShellRoot {
         WlrLayershell.namespace: "skwig:dms-poc-bar"
 
         function closeOtherPopouts(activePopup) {
+            if (batteryPopout !== activePopup)
+                batteryPopout.close();
+
             if (networkPopout !== activePopup)
                 networkPopout.close();
 
@@ -298,14 +347,14 @@ ShellRoot {
             closeOtherPopouts(popup);
 
             /*
-             * Some reused DMS components call
+             * Reused DMS components may call
              * PopoutService.closeControlCenter().
              */
             PopoutService.controlCenterPopout = popup;
 
             /*
              * Convert the button's position from the Row into
-             * coordinates relative to the full-width bar.
+             * full-screen bar coordinates.
              */
             const buttonPosition = button.mapToItem(barBackground, 0, 0);
 
@@ -336,6 +385,55 @@ ShellRoot {
                 }
 
                 spacing: 0
+
+                /*
+                 * Battery and power-profile button
+                 */
+                Rectangle {
+                    id: batteryButton
+
+                    width: 40
+                    height: rightButtons.height
+                    radius: 4
+
+                    color: {
+                        if (batteryPopout.shouldBeVisible)
+                            return Qt.rgba(1, 1, 1, 0.16);
+
+                        if (batteryMouseArea.containsMouse)
+                            return Qt.rgba(1, 1, 1, 0.10);
+
+                        return "transparent";
+                    }
+
+                    DankIcon {
+                        anchors.centerIn: parent
+
+                        name: BatteryService.getBatteryIcon()
+
+                        size: 22
+
+                        color: {
+                            if (BatteryService.isLowBattery && !BatteryService.isCharging) {
+                                return Theme.error;
+                            }
+
+                            return "#ffffff";
+                        }
+                    }
+
+                    MouseArea {
+                        id: batteryMouseArea
+
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+
+                        onClicked: {
+                            barWindow.toggleDetailPopup(batteryPopout, batteryButton);
+                        }
+                    }
+                }
 
                 /*
                  * Network button
