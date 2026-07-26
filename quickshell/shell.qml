@@ -12,11 +12,44 @@ import qs.Modals
 import qs.Services
 import qs.Widgets
 import qs.Modules.ControlCenter.Details
+import qs.Modules.DankDash.Overview
 
 ShellRoot {
     id: root
 
     readonly property var targetScreen: Quickshell.screens.length > 0 ? Quickshell.screens[0] : null
+
+    function formatBarTime(date) {
+        if (!date)
+            return "--:--";
+
+        const minutes = String(date.getMinutes()).padStart(2, "0");
+        const hours = date.getHours();
+
+        if (SettingsData.use24HourClock)
+            return String(hours).padStart(2, "0") + ":" + minutes;
+
+        const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+
+        const suffix = hours >= 12 ? " PM" : " AM";
+
+        return String(displayHours) + ":" + minutes + suffix;
+    }
+
+    SystemClock {
+        id: barClock
+
+        precision: SystemClock.Minutes
+    }
+
+    Connections {
+        target: SessionService
+
+        function onSessionResumed() {
+            barClock.enabled = false;
+            barClock.enabled = true;
+        }
+    }
 
     /*
      * Bluetooth popup
@@ -129,11 +162,61 @@ ShellRoot {
                 anchors.fill: parent
 
                 /*
-                 * Force the detail component to include its own master
-                 * volume slider. In normal DMS this can be provided by
-                 * a separate control-center widget.
+                 * Show the master volume slider inside this standalone
+                 * detail popup.
                  */
                 hasVolumeSliderInCC: false
+            }
+        }
+    }
+
+    /*
+     * Clock and calendar popup
+     */
+    DankPopoutStandalone {
+        id: calendarPopout
+
+        screen: root.targetScreen
+        layerNamespace: "skwig:calendar-poc"
+
+        popupWidth: SettingsData.showWeekNumber ? 760 : 724
+
+        popupHeight: 390
+
+        positioning: ""
+        fullHeightSurface: true
+
+        onBackgroundClicked: close()
+
+        Component.onDestruction: {
+            if (PopoutService.controlCenterPopout === calendarPopout)
+                PopoutService.controlCenterPopout = null;
+        }
+
+        content: Component {
+            Item {
+                Row {
+                    anchors.fill: parent
+                    anchors.margins: Theme.spacingM
+                    spacing: Theme.spacingM
+
+                    ClockCard {
+                        id: popupClockCard
+
+                        width: 148
+                        height: parent.height
+                    }
+
+                    CalendarOverviewCard {
+                        width: parent.width - popupClockCard.width - parent.spacing
+
+                        height: parent.height
+
+                        onCloseDash: {
+                            calendarPopout.close();
+                        }
+                    }
+                }
             }
         }
     }
@@ -201,6 +284,9 @@ ShellRoot {
 
             if (audioPopout !== activePopup)
                 audioPopout.close();
+
+            if (calendarPopout !== activePopup)
+                calendarPopout.close();
         }
 
         function toggleDetailPopup(popup, button) {
@@ -212,14 +298,14 @@ ShellRoot {
             closeOtherPopouts(popup);
 
             /*
-             * DMS detail components call closeControlCenter(), so point
-             * that service at whichever standalone popup is active.
+             * Some reused DMS components call
+             * PopoutService.closeControlCenter().
              */
             PopoutService.controlCenterPopout = popup;
 
             /*
-             * The buttons live inside a Row. Convert their position into
-             * coordinates relative to the full-width bar background.
+             * Convert the button's position from the Row into
+             * coordinates relative to the full-width bar.
              */
             const buttonPosition = button.mapToItem(barBackground, 0, 0);
 
@@ -409,6 +495,52 @@ ShellRoot {
 
                         onClicked: {
                             barWindow.toggleDetailPopup(audioPopout, audioButton);
+                        }
+                    }
+                }
+
+                /*
+                 * Clock button
+                 */
+                Rectangle {
+                    id: clockButton
+
+                    width: Math.max(68, timeText.implicitWidth + 20)
+
+                    height: rightButtons.height
+                    radius: 4
+
+                    color: {
+                        if (calendarPopout.shouldBeVisible)
+                            return Qt.rgba(1, 1, 1, 0.16);
+
+                        if (clockMouseArea.containsMouse)
+                            return Qt.rgba(1, 1, 1, 0.10);
+
+                        return "transparent";
+                    }
+
+                    StyledText {
+                        id: timeText
+
+                        anchors.centerIn: parent
+
+                        text: root.formatBarTime(barClock.date)
+                        color: "#ffffff"
+
+                        font.pixelSize: 16
+                        font.weight: Font.Medium
+                    }
+
+                    MouseArea {
+                        id: clockMouseArea
+
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+
+                        onClicked: {
+                            barWindow.toggleDetailPopup(calendarPopout, clockButton);
                         }
                     }
                 }
