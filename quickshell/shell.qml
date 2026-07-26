@@ -365,7 +365,6 @@ ShellRoot {
 
                     CalendarOverviewCard {
                         width: parent.width - popupClockCard.width - parent.spacing
-
                         height: parent.height
 
                         onCloseDash: {
@@ -418,66 +417,38 @@ ShellRoot {
 
         sourceComponent: Component {
             Item {
-                /*
-                 * Default PipeWire output volume
-                 */
                 Variants {
                     model: SettingsData.getFilteredScreens("osd")
-
                     delegate: VolumeOSD {}
                 }
 
-                /*
-                 * Active MPRIS player's own volume
-                 */
                 Variants {
                     model: SettingsData.getFilteredScreens("osd")
-
                     delegate: MediaVolumeOSD {}
                 }
 
-                /*
-                 * Active MPRIS track and playback state
-                 */
                 Variants {
                     model: SettingsData.getFilteredScreens("osd")
-
                     delegate: MediaPlaybackOSD {}
                 }
 
-                /*
-                 * Microphone volume and mute
-                 */
                 Variants {
                     model: SettingsData.getFilteredScreens("osd")
-
                     delegate: MicVolumeOSD {}
                 }
 
-                /*
-                 * Display brightness
-                 */
                 Variants {
                     model: SettingsData.getFilteredScreens("osd")
-
                     delegate: BrightnessOSD {}
                 }
 
-                /*
-                 * Power-profile changes
-                 */
                 Variants {
                     model: SettingsData.osdPowerProfileEnabled ? SettingsData.getFilteredScreens("osd") : []
-
                     delegate: PowerProfileOSD {}
                 }
 
-                /*
-                 * Current audio-output device
-                 */
                 Variants {
                     model: SettingsData.getFilteredScreens("osd")
-
                     delegate: AudioOutputOSD {}
                 }
             }
@@ -647,9 +618,7 @@ ShellRoot {
                                 id: activeWindowIcon
 
                                 anchors.fill: parent
-
                                 source: root.activeWindowIconSource
-
                                 visible: root.activeWindow && status === Image.Ready
 
                                 smooth: true
@@ -715,9 +684,6 @@ ShellRoot {
                     }
                 }
 
-                /*
-                 * Stock DMS workspace switcher, centered on the screen.
-                 */
                 QtObject {
                     id: workspaceBarConfig
 
@@ -767,7 +733,6 @@ ShellRoot {
                         anchors.centerIn: parent
 
                         text: root.activeSubmap
-
                         color: Theme.primary
                         font.pixelSize: 14
                         font.weight: Font.Medium
@@ -793,7 +758,7 @@ ShellRoot {
 
                         visible: BatteryService.batteryAvailable
 
-                        width: 40
+                        width: Math.max(40, batteryButtonContent.implicitWidth + 16)
                         height: rightButtons.height
                         radius: 4
 
@@ -807,19 +772,40 @@ ShellRoot {
                             return "transparent";
                         }
 
-                        DankIcon {
+                        Row {
+                            id: batteryButtonContent
+
                             anchors.centerIn: parent
+                            spacing: 4
 
-                            name: BatteryService.getBatteryIcon()
+                            DankIcon {
+                                anchors.verticalCenter: parent.verticalCenter
 
-                            size: 22
+                                name: BatteryService.getBatteryIcon()
+                                size: 22
 
-                            color: {
-                                if (BatteryService.isLowBattery && !BatteryService.isCharging) {
-                                    return Theme.error;
+                                color: {
+                                    if (BatteryService.isLowBattery && !BatteryService.isCharging)
+                                        return Theme.error;
+
+                                    return "#ffffff";
+                                }
+                            }
+
+                            StyledText {
+                                anchors.verticalCenter: parent.verticalCenter
+
+                                text: Math.round(BatteryService.batteryLevel) + "%"
+
+                                color: {
+                                    if (BatteryService.isLowBattery && !BatteryService.isCharging)
+                                        return Theme.error;
+
+                                    return "#ffffff";
                                 }
 
-                                return "#ffffff";
+                                font.pixelSize: 14
+                                font.weight: Font.Medium
                             }
                         }
 
@@ -828,7 +814,6 @@ ShellRoot {
 
                             anchors.fill: parent
                             hoverEnabled: true
-
                             cursorShape: Qt.PointingHandCursor
 
                             onClicked: {
@@ -879,7 +864,6 @@ ShellRoot {
 
                             anchors.fill: parent
                             hoverEnabled: true
-
                             cursorShape: Qt.PointingHandCursor
 
                             onClicked: {
@@ -899,13 +883,11 @@ ShellRoot {
                         radius: 4
 
                         color: {
-                            if (bluetoothPopout.shouldBeVisible) {
+                            if (bluetoothPopout.shouldBeVisible)
                                 return Qt.rgba(1, 1, 1, 0.16);
-                            }
 
-                            if (bluetoothMouseArea.containsMouse) {
+                            if (bluetoothMouseArea.containsMouse)
                                 return Qt.rgba(1, 1, 1, 0.10);
-                            }
 
                             return "transparent";
                         }
@@ -932,7 +914,6 @@ ShellRoot {
 
                             anchors.fill: parent
                             hoverEnabled: true
-
                             cursorShape: Qt.PointingHandCursor
 
                             onClicked: {
@@ -985,7 +966,6 @@ ShellRoot {
 
                             anchors.fill: parent
                             hoverEnabled: true
-
                             cursorShape: Qt.PointingHandCursor
 
                             onClicked: {
@@ -1012,9 +992,8 @@ ShellRoot {
                             if (centerVisible)
                                 return Qt.rgba(1, 1, 1, 0.16);
 
-                            if (notificationMouseArea.containsMouse) {
+                            if (notificationMouseArea.containsMouse)
                                 return Qt.rgba(1, 1, 1, 0.10);
-                            }
 
                             return "transparent";
                         }
@@ -1031,9 +1010,7 @@ ShellRoot {
                                 anchors.centerIn: parent
 
                                 name: SessionData.doNotDisturb ? "notifications_off" : "notifications"
-
                                 size: 22
-
                                 color: SessionData.doNotDisturb ? Theme.primary : "#ffffff"
                             }
 
@@ -1048,7 +1025,6 @@ ShellRoot {
                                 }
 
                                 color: Theme.error
-
                                 visible: notificationButton.hasNotifications
                             }
                         }
@@ -1058,7 +1034,6 @@ ShellRoot {
 
                             anchors.fill: parent
                             hoverEnabled: true
-
                             cursorShape: Qt.PointingHandCursor
 
                             onClicked: {
@@ -1074,14 +1049,12 @@ ShellRoot {
                         id: clockButton
 
                         width: Math.max(68, timeText.implicitWidth + 20)
-
                         height: rightButtons.height
                         radius: 4
 
                         color: {
-                            if (calendarPopout.shouldBeVisible) {
+                            if (calendarPopout.shouldBeVisible)
                                 return Qt.rgba(1, 1, 1, 0.16);
-                            }
 
                             if (clockMouseArea.containsMouse)
                                 return Qt.rgba(1, 1, 1, 0.10);
@@ -1106,7 +1079,6 @@ ShellRoot {
 
                             anchors.fill: parent
                             hoverEnabled: true
-
                             cursorShape: Qt.PointingHandCursor
 
                             onClicked: {
