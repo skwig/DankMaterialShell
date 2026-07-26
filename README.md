@@ -3,3 +3,6 @@
 - vypnut onclick v kalendari
 - vypnut pin buttony
 - sekundy v kalendar popupe
+- percenta v baterke
+- skryt baterku ak nema baterku
+- baterkovy power draw?
