@@ -1,2 +1,5 @@
 - vyhodit settings button v popupoch
 - on/off toggly na "seba" v popupe
+- vypnut onclick v kalendari
+- vypnut pin buttony
+- sekundy v kalendar popupe
