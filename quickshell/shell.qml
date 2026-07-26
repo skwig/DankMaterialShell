@@ -26,6 +26,10 @@ ShellRoot {
     property bool osdSurfacesLoaded: false
     property int pendingOsdResumeReloads: 0
 
+    readonly property Toplevel activeWindow: ToplevelManager.activeToplevel
+
+    readonly property string activeWindowTitle: activeWindow?.title || activeWindow?.appId || "Desktop"
+
     function formatBarTime(date) {
         if (!date)
             return "--:--";
@@ -423,7 +427,6 @@ ShellRoot {
                  */
                 Variants {
                     model: SettingsData.getFilteredScreens("osd")
-
                     delegate: BrightnessOSD {}
                 }
 
@@ -570,6 +573,42 @@ ShellRoot {
 
             anchors.fill: parent
             color: Qt.rgba(0, 0, 0, 0.4)
+
+            /* Active window title on the left side of the bar. */
+            Item {
+                id: windowTitleArea
+
+                anchors {
+                    top: parent.top
+                    left: parent.left
+                    right: rightButtons.left
+                    bottom: parent.bottom
+
+                    leftMargin: 12
+                    rightMargin: 12
+                }
+
+                clip: true
+
+                StyledText {
+                    anchors {
+                        left: parent.left
+                        right: parent.right
+                        verticalCenter: parent.verticalCenter
+                    }
+
+                    text: root.activeWindowTitle
+                    visible: text.length > 0
+
+                    color: "#ffffff"
+                    font.pixelSize: 15
+                    font.weight: Font.Medium
+
+                    elide: Text.ElideRight
+                    wrapMode: Text.NoWrap
+                    maximumLineCount: 1
+                }
+            }
 
             Row {
                 id: rightButtons
