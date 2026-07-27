@@ -7,6 +7,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
+import Quickshell.Services.SystemTray
 import Quickshell.Wayland
 import Quickshell.Widgets
 
@@ -27,6 +28,8 @@ ShellRoot {
 
     readonly property var targetScreen: Quickshell.screens.length > 0 ? Quickshell.screens[0] : null
 
+    readonly property var trayItems: SystemTray.items.values
+
     property bool osdSurfacesLoaded: false
     property int pendingOsdResumeReloads: 0
     property string activeSubmap: ""
@@ -46,6 +49,47 @@ ShellRoot {
             return "";
 
         return submap;
+    }
+
+    function trayItemKey(trayItem) {
+        const id = trayItem?.id || "";
+        const tooltipTitle = trayItem?.tooltipTitle || "";
+
+        if (!tooltipTitle || tooltipTitle === id)
+            return id;
+
+        return id + "::" + tooltipTitle;
+    }
+
+    function trayIconSourceFor(trayItem) {
+        const icon = trayItem?.icon;
+
+        if (typeof icon !== "string" || icon.length === 0)
+            return "";
+
+        if (icon.includes("?path=")) {
+            const separatorIndex = icon.indexOf("?path=");
+            const iconName = icon.substring(0, separatorIndex);
+            const iconPath = icon.substring(separatorIndex + 6);
+
+            let fileName = iconName.substring(iconName.lastIndexOf("/") + 1);
+
+            if (fileName.startsWith("dropboxstatus"))
+                fileName = "hicolor/16x16/status/" + fileName;
+
+            return "file://" + iconPath + "/" + fileName;
+        }
+
+        if (icon.startsWith("/") && !icon.startsWith("file://"))
+            return "file://" + icon;
+
+        return icon;
+    }
+
+    function trayItemFallbackText(trayItem) {
+        const title = trayItem?.tooltipTitle || trayItem?.title || trayItem?.id || "?";
+
+        return title.length > 0 ? title.charAt(0).toUpperCase() : "?";
     }
 
     function formatBarTime(date) {
@@ -97,9 +141,8 @@ ShellRoot {
         target: Hyprland
 
         function onRawEvent(event) {
-            if (event.name === "submap" || event.name === "keybinds.submap") {
+            if (event.name === "submap" || event.name === "keybinds.submap")
                 root.activeSubmap = root.normalizeSubmap(event.data);
-            }
         }
     }
 
@@ -285,6 +328,192 @@ ShellRoot {
     }
 
     /*
+     * System tray popup
+     */
+    DankPopoutStandalone {
+        id: systemTrayPopout
+
+        property var menuHost: null
+        property var menuAnchorItem: null
+        property var menuScreen: null
+
+        function openThemedMenu(trayItem) {
+            const host = menuHost;
+            const anchor = menuAnchorItem;
+            const targetScreen = menuScreen;
+
+            close();
+
+            if (!host || !anchor || !targetScreen || !trayItem?.hasMenu)
+                return;
+
+            Qt.callLater(() => {
+                host.showForTrayItem(trayItem, anchor, targetScreen, false, false, host.axis);
+            });
+        }
+
+        function openContextMenuFallback(trayItem, area, mouse) {
+            const host = menuHost;
+
+            if (!host || !trayItem || !area)
+                return;
+
+            const globalPosition = area.mapToGlobal(mouse.x, mouse.y);
+
+            close();
+
+            host.callContextMenuFallback(trayItem.id, Math.round(globalPosition.x), Math.round(globalPosition.y));
+        }
+
+        screen: root.targetScreen
+        layerNamespace: "skwig:system-tray-poc"
+
+        popupWidth: Math.min(420, Math.max(120, root.trayItems.length * 38 + 20))
+        popupHeight: 56
+
+        positioning: ""
+        fullHeightSurface: true
+
+        onBackgroundClicked: close()
+
+        Component.onDestruction: {
+            if (PopoutService.controlCenterPopout === systemTrayPopout)
+                PopoutService.controlCenterPopout = null;
+        }
+
+        content: Component {
+            Item {
+                StyledText {
+                    anchors.centerIn: parent
+
+                    visible: root.trayItems.length === 0
+
+                    text: I18n.tr("No tray items")
+
+                    color: Theme.surfaceTextMedium
+                    font.pixelSize: Theme.fontSizeSmall
+                    font.weight: Font.Medium
+                }
+
+                Flickable {
+                    id: systemTrayFlickable
+
+                    anchors.fill: parent
+                    anchors.margins: 8
+
+                    visible: root.trayItems.length > 0
+                    clip: true
+
+                    contentWidth: Math.max(width, trayItemsRow.implicitWidth)
+                    contentHeight: height
+
+                    flickableDirection: Flickable.HorizontalFlick
+                    boundsBehavior: Flickable.StopAtBounds
+
+                    Row {
+                        id: trayItemsRow
+
+                        x: Math.max(0, (systemTrayFlickable.width - implicitWidth) / 2)
+                        y: Math.round((systemTrayFlickable.height - height) / 2)
+
+                        height: 36
+                        spacing: 2
+
+                        Repeater {
+                            model: root.trayItems
+
+                            delegate: Rectangle {
+                                id: trayItemButton
+
+                                required property var modelData
+
+                                width: 36
+                                height: 36
+                                radius: 6
+
+                                color: trayItemMouseArea.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : "transparent"
+
+                                IconImage {
+                                    id: trayItemIcon
+
+                                    anchors.centerIn: parent
+
+                                    width: 18
+                                    height: 18
+
+                                    source: root.trayIconSourceFor(trayItemButton.modelData)
+
+                                    visible: status === Image.Ready
+
+                                    asynchronous: true
+                                    smooth: true
+                                    mipmap: true
+                                }
+
+                                StyledText {
+                                    anchors.centerIn: parent
+
+                                    visible: !trayItemIcon.visible
+
+                                    text: root.trayItemFallbackText(trayItemButton.modelData)
+
+                                    color: "#ffffff"
+                                    font.pixelSize: 10
+                                    font.weight: Font.Bold
+                                }
+
+                                MouseArea {
+                                    id: trayItemMouseArea
+
+                                    anchors.fill: parent
+
+                                    hoverEnabled: true
+
+                                    acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
+
+                                    cursorShape: Qt.PointingHandCursor
+
+                                    onClicked: mouse => {
+                                        const trayItem = trayItemButton.modelData;
+
+                                        if (!trayItem)
+                                            return;
+
+                                        if (mouse.button === Qt.MiddleButton) {
+                                            trayItem.secondaryActivate();
+                                            return;
+                                        }
+
+                                        if (mouse.button === Qt.RightButton || trayItem.onlyMenu) {
+                                            if (trayItem.hasMenu) {
+                                                systemTrayPopout.openThemedMenu(trayItem);
+                                                return;
+                                            }
+
+                                            if (mouse.button === Qt.RightButton)
+                                                systemTrayPopout.openContextMenuFallback(trayItem, trayItemMouseArea, mouse);
+
+                                            return;
+                                        }
+
+                                        trayItem.activate();
+                                        systemTrayPopout.close();
+                                    }
+
+                                    onWheel: wheel => {
+                                        trayItemButton.modelData.scroll(wheel.angleDelta.y, false);
+                                        wheel.accepted = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /*
      * Battery and power-profile popup
      */
     DankPopoutStandalone {
@@ -365,6 +594,7 @@ ShellRoot {
 
                     CalendarOverviewCard {
                         width: parent.width - popupClockCard.width - parent.spacing
+
                         height: parent.height
 
                         onCloseDash: {
@@ -417,38 +647,66 @@ ShellRoot {
 
         sourceComponent: Component {
             Item {
+                /*
+                 * Default PipeWire output volume
+                 */
                 Variants {
                     model: SettingsData.getFilteredScreens("osd")
+
                     delegate: VolumeOSD {}
                 }
 
+                /*
+                 * Active MPRIS player's own volume
+                 */
                 Variants {
                     model: SettingsData.getFilteredScreens("osd")
+
                     delegate: MediaVolumeOSD {}
                 }
 
+                /*
+                 * Active MPRIS track and playback state
+                 */
                 Variants {
                     model: SettingsData.getFilteredScreens("osd")
+
                     delegate: MediaPlaybackOSD {}
                 }
 
+                /*
+                 * Microphone volume and mute
+                 */
                 Variants {
                     model: SettingsData.getFilteredScreens("osd")
+
                     delegate: MicVolumeOSD {}
                 }
 
+                /*
+                 * Display brightness
+                 */
                 Variants {
                     model: SettingsData.getFilteredScreens("osd")
+
                     delegate: BrightnessOSD {}
                 }
 
+                /*
+                 * Power-profile changes
+                 */
                 Variants {
                     model: SettingsData.osdPowerProfileEnabled ? SettingsData.getFilteredScreens("osd") : []
+
                     delegate: PowerProfileOSD {}
                 }
 
+                /*
+                 * Current audio-output device
+                 */
                 Variants {
                     model: SettingsData.getFilteredScreens("osd")
+
                     delegate: AudioOutputOSD {}
                 }
             }
@@ -526,6 +784,9 @@ ShellRoot {
 
                 if (audioPopout !== activePopup)
                     audioPopout.close();
+
+                if (systemTrayPopout !== activePopup)
+                    systemTrayPopout.close();
 
                 if (calendarPopout !== activePopup)
                     calendarPopout.close();
@@ -618,7 +879,9 @@ ShellRoot {
                                 id: activeWindowIcon
 
                                 anchors.fill: parent
+
                                 source: root.activeWindowIconSource
+
                                 visible: root.activeWindow && status === Image.Ready
 
                                 smooth: true
@@ -684,6 +947,13 @@ ShellRoot {
                     }
                 }
 
+                /*
+                 * Stock DMS workspace switcher, centered on the screen.
+                 *
+                 * It reads Hyprland's reactive workspace model, highlights
+                 * the active workspace, supports click-to-switch and wheel
+                 * navigation, and follows the DMS workspace appearance settings.
+                 */
                 QtObject {
                     id: workspaceBarConfig
 
@@ -710,6 +980,38 @@ ShellRoot {
                     barConfig: workspaceBarConfig
                 }
 
+                QtObject {
+                    id: trayMenuAxis
+
+                    property string edge: "top"
+                }
+
+                /*
+                 * Hidden stock DMS tray widget used only to create DMS's
+                 * themed StatusNotifier menus.
+                 */
+                SystemTrayBar {
+                    id: trayMenuHost
+
+                    visible: false
+
+                    parentWindow: barWindow
+                    parentScreen: barWindow.screen
+
+                    widgetThickness: barWindow.implicitHeight
+                    barThickness: barWindow.implicitHeight
+                    barSpacing: 4
+
+                    axis: trayMenuAxis
+                    barConfig: null
+
+                    isAtBottom: false
+                    isAutoHideBar: false
+
+                    useAutomaticOverflow: false
+                    useOverflowPopup: false
+                }
+
                 Rectangle {
                     id: submapIndicator
 
@@ -733,6 +1035,7 @@ ShellRoot {
                         anchors.centerIn: parent
 
                         text: root.activeSubmap
+
                         color: Theme.primary
                         font.pixelSize: 14
                         font.weight: Font.Medium
@@ -749,6 +1052,52 @@ ShellRoot {
                     }
 
                     spacing: 0
+
+                    /*
+                     * System tray button
+                     */
+                    Rectangle {
+                        id: systemTrayButton
+
+                        width: 40
+                        height: rightButtons.height
+                        radius: 4
+
+                        color: {
+                            if (systemTrayPopout.shouldBeVisible)
+                                return Qt.rgba(1, 1, 1, 0.16);
+
+                            if (systemTrayMouseArea.containsMouse)
+                                return Qt.rgba(1, 1, 1, 0.10);
+
+                            return "transparent";
+                        }
+
+                        DankIcon {
+                            anchors.centerIn: parent
+
+                            name: "apps"
+                            size: 22
+                            color: "#ffffff"
+                        }
+
+                        MouseArea {
+                            id: systemTrayMouseArea
+
+                            anchors.fill: parent
+                            hoverEnabled: true
+
+                            cursorShape: Qt.PointingHandCursor
+
+                            onClicked: {
+                                systemTrayPopout.menuHost = trayMenuHost;
+                                systemTrayPopout.menuAnchorItem = systemTrayButton;
+                                systemTrayPopout.menuScreen = barWindow.screen;
+
+                                barWindow.toggleDetailPopup(systemTrayPopout, systemTrayButton);
+                            }
+                        }
+                    }
 
                     /*
                      * Battery button
@@ -814,6 +1163,7 @@ ShellRoot {
 
                             anchors.fill: parent
                             hoverEnabled: true
+
                             cursorShape: Qt.PointingHandCursor
 
                             onClicked: {
@@ -864,6 +1214,7 @@ ShellRoot {
 
                             anchors.fill: parent
                             hoverEnabled: true
+
                             cursorShape: Qt.PointingHandCursor
 
                             onClicked: {
@@ -883,11 +1234,13 @@ ShellRoot {
                         radius: 4
 
                         color: {
-                            if (bluetoothPopout.shouldBeVisible)
+                            if (bluetoothPopout.shouldBeVisible) {
                                 return Qt.rgba(1, 1, 1, 0.16);
+                            }
 
-                            if (bluetoothMouseArea.containsMouse)
+                            if (bluetoothMouseArea.containsMouse) {
                                 return Qt.rgba(1, 1, 1, 0.10);
+                            }
 
                             return "transparent";
                         }
@@ -914,6 +1267,7 @@ ShellRoot {
 
                             anchors.fill: parent
                             hoverEnabled: true
+
                             cursorShape: Qt.PointingHandCursor
 
                             onClicked: {
@@ -966,6 +1320,7 @@ ShellRoot {
 
                             anchors.fill: parent
                             hoverEnabled: true
+
                             cursorShape: Qt.PointingHandCursor
 
                             onClicked: {
@@ -992,8 +1347,9 @@ ShellRoot {
                             if (centerVisible)
                                 return Qt.rgba(1, 1, 1, 0.16);
 
-                            if (notificationMouseArea.containsMouse)
+                            if (notificationMouseArea.containsMouse) {
                                 return Qt.rgba(1, 1, 1, 0.10);
+                            }
 
                             return "transparent";
                         }
@@ -1010,7 +1366,9 @@ ShellRoot {
                                 anchors.centerIn: parent
 
                                 name: SessionData.doNotDisturb ? "notifications_off" : "notifications"
+
                                 size: 22
+
                                 color: SessionData.doNotDisturb ? Theme.primary : "#ffffff"
                             }
 
@@ -1021,10 +1379,12 @@ ShellRoot {
 
                                 anchors {
                                     top: notificationIcon.top
+
                                     right: notificationIcon.right
                                 }
 
                                 color: Theme.error
+
                                 visible: notificationButton.hasNotifications
                             }
                         }
@@ -1034,6 +1394,7 @@ ShellRoot {
 
                             anchors.fill: parent
                             hoverEnabled: true
+
                             cursorShape: Qt.PointingHandCursor
 
                             onClicked: {
@@ -1049,12 +1410,14 @@ ShellRoot {
                         id: clockButton
 
                         width: Math.max(68, timeText.implicitWidth + 20)
+
                         height: rightButtons.height
                         radius: 4
 
                         color: {
-                            if (calendarPopout.shouldBeVisible)
+                            if (calendarPopout.shouldBeVisible) {
                                 return Qt.rgba(1, 1, 1, 0.16);
+                            }
 
                             if (clockMouseArea.containsMouse)
                                 return Qt.rgba(1, 1, 1, 0.10);
@@ -1079,6 +1442,7 @@ ShellRoot {
 
                             anchors.fill: parent
                             hoverEnabled: true
+
                             cursorShape: Qt.PointingHandCursor
 
                             onClicked: {
