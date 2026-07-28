@@ -26,18 +26,24 @@ ShellRoot {
         SettingsData.showWorkspaceApps = false;
     }
 
-    SkwigBluetoothPopout {
-        id: bluetoothPopoutRef
-        screen: root.targetScreen
+    Variants {
+        model: Quickshell.screens
+
+        delegate: SkwigBar {
+            modelData: modelData
+            screen: modelData
+            batteryPopout: batteryPopoutRef
+            networkPopout: networkPopoutRef
+            bluetoothPopout: bluetoothPopoutRef
+            audioPopout: audioPopoutRef
+            calendarPopout: calendarPopoutRef
+            systemTrayPopout: systemTrayPopoutRef
+            notificationCenterPopout: notificationCenterPopoutRef
+        }
     }
 
-    SkwigNetworkPopout {
-        id: networkPopoutRef
-        screen: root.targetScreen
-    }
-
-    SkwigAudioPopout {
-        id: audioPopoutRef
+    SkwigSystemTrayPopout {
+        id: systemTrayPopoutRef
         screen: root.targetScreen
     }
 
@@ -46,22 +52,32 @@ ShellRoot {
         screen: root.targetScreen
     }
 
-    SkwigCalendarPopout {
-        id: calendarPopoutRef
+    SkwigNetworkPopout {
+        id: networkPopoutRef
         screen: root.targetScreen
     }
 
-    SkwigSystemTrayPopout {
-        id: systemTrayPopoutRef
+    SkwigBluetoothPopout {
+        id: bluetoothPopoutRef
         screen: root.targetScreen
     }
 
-    SkwigWifiPasswordModalHost {}
+    SkwigAudioPopout {
+        id: audioPopoutRef
+        screen: root.targetScreen
+    }
 
     SkwigNotificationCenterPopout {
         id: notificationCenterPopoutRef
         triggerScreen: root.targetScreen
     }
+
+    SkwigCalendarPopout {
+        id: calendarPopoutRef
+        screen: root.targetScreen
+    }
+
+    SkwigWifiPasswordModalHost {}
 
     Variants {
         model: Quickshell.screens
@@ -109,22 +125,6 @@ ShellRoot {
                     delegate: AudioOutputOSD {}
                 }
             }
-        }
-    }
-
-    Variants {
-        model: Quickshell.screens
-
-        delegate: SkwigBar {
-            modelData: modelData
-            screen: modelData
-            batteryPopout: batteryPopoutRef
-            networkPopout: networkPopoutRef
-            bluetoothPopout: bluetoothPopoutRef
-            audioPopout: audioPopoutRef
-            calendarPopout: calendarPopoutRef
-            systemTrayPopout: systemTrayPopoutRef
-            notificationCenterPopout: notificationCenterPopoutRef
         }
     }
 }
