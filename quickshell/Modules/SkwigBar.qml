@@ -16,8 +16,6 @@ PanelWindow {
     required property var calendarPopout
     required property var notificationCenterPopout
 
-    property string activeSubmap: ""
-    property string clockText: "--:--"
     property var modelData
 
     visible: true
@@ -160,15 +158,6 @@ PanelWindow {
             useOverflowPopup: false
         }
 
-        SkwigSubmapIndicator {
-            anchors {
-                right: rightButtons.left
-                rightMargin: 6
-                verticalCenter: parent.verticalCenter
-            }
-            activeSubmap: root.activeSubmap
-        }
-
         Row {
             id: rightButtons
 
@@ -179,6 +168,10 @@ PanelWindow {
             }
 
             spacing: 0
+
+            SkwigSubmapIndicator {
+                anchors.verticalCenter: parent.verticalCenter
+            }
 
             SkwigSystemTrayButton {
                 height: parent.height
@@ -221,7 +214,6 @@ PanelWindow {
             SkwigClockButton {
                 height: parent.height
                 calendarPopout: root.calendarPopout
-                clockText: root.clockText
                 onClicked: button => root.toggleDetailPopup(root.calendarPopout, button)
             }
         }

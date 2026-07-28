@@ -5,13 +5,12 @@
 
 import QtQuick
 import Quickshell
-import Quickshell.Hyprland
-import Quickshell.Io
 
 import qs.Common
 import qs.Modules
 import qs.Modules.Notifications.Center
 import qs.Modules.Notifications.Popup
+import qs.Modules.OSD
 import qs.Services
 
 ShellRoot {
@@ -21,32 +20,6 @@ ShellRoot {
 
     property bool osdSurfacesLoaded: false
     property int pendingOsdResumeReloads: 0
-    property string activeSubmap: ""
-
-    function normalizeSubmap(value) {
-        const submap = String(value ?? "").trim();
-
-        if (submap === "" || submap === "reset" || submap === "default")
-            return "";
-
-        return submap;
-    }
-
-    function formatBarTime(date) {
-        if (!date)
-            return "--:--";
-
-        const minutes = String(date.getMinutes()).padStart(2, "0");
-        const hours = date.getHours();
-
-        if (SettingsData.use24HourClock)
-            return String(hours).padStart(2, "0") + ":" + minutes;
-
-        const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
-        const suffix = hours >= 12 ? " PM" : " AM";
-
-        return String(displayHours) + ":" + minutes + suffix;
-    }
 
     function recreateOsdSurfaces() {
         OSDManager.currentOSDsByScreen = ({});
@@ -62,31 +35,6 @@ ShellRoot {
         SettingsData.showWorkspaceName = false;
         SettingsData.showWorkspaceApps = false;
         osdStartupTimer.start();
-    }
-
-    Process {
-        command: ["hyprctl", "submap"]
-        running: true
-
-        stdout: StdioCollector {
-            onStreamFinished: {
-                root.activeSubmap = root.normalizeSubmap(text);
-            }
-        }
-    }
-
-    Connections {
-        target: Hyprland
-
-        function onRawEvent(event) {
-            if (event.name === "submap" || event.name === "keybinds.submap")
-                root.activeSubmap = root.normalizeSubmap(event.data);
-        }
-    }
-
-    SystemClock {
-        id: barClock
-        precision: SystemClock.Minutes
     }
 
     Timer {
@@ -133,9 +81,6 @@ ShellRoot {
         target: SessionService
 
         function onSessionResumed() {
-            barClock.enabled = false;
-            barClock.enabled = true;
-
             root.pendingOsdResumeReloads = 2;
             osdResumeRecreateTimer.interval = 400;
             osdResumeRecreateTimer.restart();
@@ -201,7 +146,42 @@ ShellRoot {
         asynchronous: false
 
         sourceComponent: Component {
-            SkwigOsdSurfaces {}
+            Item {
+                Variants {
+                    model: SettingsData.getFilteredScreens("osd")
+                    delegate: VolumeOSD {}
+                }
+
+                Variants {
+                    model: SettingsData.getFilteredScreens("osd")
+                    delegate: MediaVolumeOSD {}
+                }
+
+                Variants {
+                    model: SettingsData.getFilteredScreens("osd")
+                    delegate: MediaPlaybackOSD {}
+                }
+
+                Variants {
+                    model: SettingsData.getFilteredScreens("osd")
+                    delegate: MicVolumeOSD {}
+                }
+
+                Variants {
+                    model: SettingsData.getFilteredScreens("osd")
+                    delegate: BrightnessOSD {}
+                }
+
+                Variants {
+                    model: SettingsData.osdPowerProfileEnabled ? SettingsData.getFilteredScreens("osd") : []
+                    delegate: PowerProfileOSD {}
+                }
+
+                Variants {
+                    model: SettingsData.getFilteredScreens("osd")
+                    delegate: AudioOutputOSD {}
+                }
+            }
         }
     }
 
@@ -211,8 +191,6 @@ ShellRoot {
         delegate: SkwigBar {
             modelData: modelData
             screen: modelData
-            activeSubmap: root.activeSubmap
-            clockText: root.formatBarTime(barClock.date)
             batteryPopout: batteryPopoutRef
             networkPopout: networkPopoutRef
             bluetoothPopout: bluetoothPopoutRef
