@@ -1,11 +1,13 @@
 import QtQuick
+import qs.Modules.DankBar.Widgets
 import qs.Widgets
 
 Rectangle {
     id: root
 
+    required property var barWindow
+    required property real barThickness
     required property var currentScreen
-    required property var trayMenuHost
     required property var systemTrayPopout
 
     signal clicked(var button)
@@ -27,6 +29,31 @@ Rectangle {
         name: "apps"
         size: 22
         color: "#ffffff"
+    }
+
+    QtObject {
+        id: trayMenuAxis
+
+        property bool isVertical: false
+        property bool isHorizontal: true
+        property string edge: "top"
+    }
+
+    SystemTrayBar {
+        id: trayMenuHost
+
+        visible: false
+        parentWindow: root.barWindow
+        parentScreen: root.currentScreen
+        widgetThickness: root.barThickness
+        barThickness: root.barThickness
+        barSpacing: 4
+        axis: trayMenuAxis
+        barConfig: null
+        isAtBottom: false
+        isAutoHideBar: false
+        useAutomaticOverflow: false
+        useOverflowPopup: false
     }
 
     MouseArea {

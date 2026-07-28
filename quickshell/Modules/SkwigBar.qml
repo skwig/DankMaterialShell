@@ -97,7 +97,7 @@ PanelWindow {
         anchors.fill: parent
         color: Qt.rgba(0, 0, 0, 0.4)
 
-        SkwigActiveWindow {
+        SkwigWindowTitle {
             anchors {
                 top: parent.top
                 left: parent.left
@@ -133,31 +133,6 @@ PanelWindow {
             barConfig: workspaceBarConfig
         }
 
-        QtObject {
-            id: trayMenuAxis
-
-            property bool isVertical: false
-            property bool isHorizontal: true
-            property string edge: "top"
-        }
-
-        SystemTrayBar {
-            id: trayMenuHost
-
-            visible: false
-            parentWindow: root
-            parentScreen: root.screen
-            widgetThickness: root.implicitHeight
-            barThickness: root.implicitHeight
-            barSpacing: 4
-            axis: trayMenuAxis
-            barConfig: null
-            isAtBottom: false
-            isAutoHideBar: false
-            useAutomaticOverflow: false
-            useOverflowPopup: false
-        }
-
         Row {
             id: rightButtons
 
@@ -175,8 +150,9 @@ PanelWindow {
 
             SkwigSystemTrayButton {
                 height: parent.height
+                barWindow: root
+                barThickness: root.implicitHeight
                 currentScreen: root.screen
-                trayMenuHost: trayMenuHost
                 systemTrayPopout: root.systemTrayPopout
                 onClicked: button => root.toggleDetailPopup(root.systemTrayPopout, button)
             }

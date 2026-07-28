@@ -8,7 +8,6 @@ import Quickshell
 
 import qs.Common
 import qs.Modules
-import qs.Modules.Notifications.Center
 import qs.Modules.Notifications.Popup
 import qs.Modules.OSD
 import qs.Services
@@ -18,15 +17,6 @@ ShellRoot {
 
     readonly property var targetScreen: Quickshell.screens.length > 0 ? Quickshell.screens[0] : null
 
-    property bool osdSurfacesLoaded: false
-    property int pendingOsdResumeReloads: 0
-
-    function recreateOsdSurfaces() {
-        OSDManager.currentOSDsByScreen = ({});
-        osdSurfacesLoaded = false;
-        osdSurfaceReloadTimer.restart();
-    }
-
     Component.onCompleted: {
         SettingsData.osdPosition = SettingsData.Position.Left;
         SettingsData.osdMediaVolumeEnabled = true;
@@ -34,57 +24,6 @@ ShellRoot {
         SettingsData.showWorkspaceIndex = true;
         SettingsData.showWorkspaceName = false;
         SettingsData.showWorkspaceApps = false;
-        osdStartupTimer.start();
-    }
-
-    Timer {
-        id: osdStartupTimer
-        interval: 1000
-        repeat: false
-
-        onTriggered: {
-            root.osdSurfacesLoaded = true;
-        }
-    }
-
-    Timer {
-        id: osdSurfaceReloadTimer
-        interval: 120
-        repeat: false
-
-        onTriggered: {
-            root.osdSurfacesLoaded = true;
-        }
-    }
-
-    Timer {
-        id: osdResumeRecreateTimer
-        interval: 400
-        repeat: false
-
-        onTriggered: {
-            root.recreateOsdSurfaces();
-            root.pendingOsdResumeReloads--;
-
-            if (root.pendingOsdResumeReloads <= 0) {
-                root.pendingOsdResumeReloads = 0;
-                interval = 400;
-                return;
-            }
-
-            interval = 1400;
-            restart();
-        }
-    }
-
-    Connections {
-        target: SessionService
-
-        function onSessionResumed() {
-            root.pendingOsdResumeReloads = 2;
-            osdResumeRecreateTimer.interval = 400;
-            osdResumeRecreateTimer.restart();
-        }
     }
 
     SkwigBluetoothPopout {
@@ -112,25 +51,16 @@ ShellRoot {
         screen: root.targetScreen
     }
 
-    SkwigTrayPopout {
+    SkwigSystemTrayPopout {
         id: systemTrayPopoutRef
         screen: root.targetScreen
     }
 
     SkwigWifiPasswordModalHost {}
 
-    NotificationCenterPopout {
+    SkwigNotificationCenterPopout {
         id: notificationCenterPopoutRef
         triggerScreen: root.targetScreen
-
-        Component.onCompleted: {
-            PopoutService.notificationCenterPopout = notificationCenterPopoutRef;
-        }
-
-        Component.onDestruction: {
-            if (PopoutService.notificationCenterPopout === notificationCenterPopoutRef)
-                PopoutService.notificationCenterPopout = null;
-        }
     }
 
     Variants {
@@ -141,11 +71,8 @@ ShellRoot {
         }
     }
 
-    Loader {
-        active: root.osdSurfacesLoaded
-        asynchronous: false
-
-        sourceComponent: Component {
+    SkwigOsdHost {
+        surfaces: Component {
             Item {
                 Variants {
                     model: SettingsData.getFilteredScreens("osd")
@@ -173,7 +100,7 @@ ShellRoot {
                 }
 
                 Variants {
-                    model: SettingsData.osdPowerProfileEnabled ? SettingsData.getFilteredScreens("osd") : []
+                    model: SettingsData.getFilteredScreens("osd")
                     delegate: PowerProfileOSD {}
                 }
 
