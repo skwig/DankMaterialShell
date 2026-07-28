@@ -28,7 +28,7 @@ ShellRoot {
 
     readonly property var targetScreen: Quickshell.screens.length > 0 ? Quickshell.screens[0] : null
 
-    readonly property var trayItems: SystemTray.items.values
+    readonly property var trayItems: SystemTray.items.values.filter(item => !SessionData.isHiddenTrayId(root.trayItemKey(item)))
 
     property bool osdSurfacesLoaded: false
     property int pendingOsdResumeReloads: 0
@@ -120,6 +120,10 @@ ShellRoot {
 
         SettingsData.osdMediaVolumeEnabled = true;
         SettingsData.osdMediaPlaybackEnabled = true;
+
+        SettingsData.showWorkspaceIndex = true;
+        SettingsData.showWorkspaceName = false;
+        SettingsData.showWorkspaceApps = false;
 
         osdStartupTimer.start();
     }
@@ -217,7 +221,6 @@ ShellRoot {
         layerNamespace: "skwig:bluetooth-poc"
 
         popupWidth: 520
-
         popupHeight: Math.min(620, Math.max(360, (screen?.height ?? 1080) - 96))
 
         positioning: ""
@@ -226,15 +229,13 @@ ShellRoot {
         onBackgroundClicked: close()
 
         Component.onDestruction: {
-            if (PopoutService.controlCenterPopout === bluetoothPopout) {
+            if (PopoutService.controlCenterPopout === bluetoothPopout)
                 PopoutService.controlCenterPopout = null;
-            }
         }
 
         onShouldBeVisibleChanged: {
-            if (!shouldBeVisible && BluetoothService.adapter?.discovering) {
+            if (!shouldBeVisible && BluetoothService.adapter?.discovering)
                 BluetoothService.adapter.discovering = false;
-            }
         }
 
         content: Component {
@@ -274,7 +275,6 @@ ShellRoot {
         layerNamespace: "skwig:network-poc"
 
         popupWidth: 520
-
         popupHeight: Math.min(620, Math.max(360, (screen?.height ?? 1080) - 96))
 
         positioning: ""
@@ -283,9 +283,8 @@ ShellRoot {
         onBackgroundClicked: close()
 
         Component.onDestruction: {
-            if (PopoutService.controlCenterPopout === networkPopout) {
+            if (PopoutService.controlCenterPopout === networkPopout)
                 PopoutService.controlCenterPopout = null;
-            }
         }
 
         content: Component {
@@ -305,7 +304,6 @@ ShellRoot {
         layerNamespace: "skwig:audio-poc"
 
         popupWidth: 520
-
         popupHeight: Math.min(620, Math.max(360, (screen?.height ?? 1080) - 96))
 
         positioning: ""
@@ -314,9 +312,8 @@ ShellRoot {
         onBackgroundClicked: close()
 
         Component.onDestruction: {
-            if (PopoutService.controlCenterPopout === audioPopout) {
+            if (PopoutService.controlCenterPopout === audioPopout)
                 PopoutService.controlCenterPopout = null;
-            }
         }
 
         content: Component {
@@ -387,7 +384,6 @@ ShellRoot {
                     anchors.centerIn: parent
 
                     visible: root.trayItems.length === 0
-
                     text: I18n.tr("No tray items")
 
                     color: Theme.surfaceTextMedium
@@ -414,6 +410,7 @@ ShellRoot {
                         id: trayItemsRow
 
                         x: Math.max(0, (systemTrayFlickable.width - implicitWidth) / 2)
+
                         y: Math.round((systemTrayFlickable.height - height) / 2)
 
                         height: 36
@@ -466,7 +463,6 @@ ShellRoot {
                                     id: trayItemMouseArea
 
                                     anchors.fill: parent
-
                                     hoverEnabled: true
 
                                     acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
@@ -487,11 +483,13 @@ ShellRoot {
                                         if (mouse.button === Qt.RightButton || trayItem.onlyMenu) {
                                             if (trayItem.hasMenu) {
                                                 systemTrayPopout.openThemedMenu(trayItem);
+
                                                 return;
                                             }
 
-                                            if (mouse.button === Qt.RightButton)
+                                            if (mouse.button === Qt.RightButton) {
                                                 systemTrayPopout.openContextMenuFallback(trayItem, trayItemMouseArea, mouse);
+                                            }
 
                                             return;
                                         }
@@ -502,6 +500,7 @@ ShellRoot {
 
                                     onWheel: wheel => {
                                         trayItemButton.modelData.scroll(wheel.angleDelta.y, false);
+
                                         wheel.accepted = true;
                                     }
                                 }
@@ -534,9 +533,8 @@ ShellRoot {
         onBackgroundClicked: close()
 
         Component.onDestruction: {
-            if (PopoutService.controlCenterPopout === batteryPopout) {
+            if (PopoutService.controlCenterPopout === batteryPopout)
                 PopoutService.controlCenterPopout = null;
-            }
         }
 
         content: Component {
@@ -564,7 +562,6 @@ ShellRoot {
         layerNamespace: "skwig:calendar-poc"
 
         popupWidth: SettingsData.showWeekNumber ? 760 : 724
-
         popupHeight: 390
 
         positioning: ""
@@ -573,9 +570,8 @@ ShellRoot {
         onBackgroundClicked: close()
 
         Component.onDestruction: {
-            if (PopoutService.controlCenterPopout === calendarPopout) {
+            if (PopoutService.controlCenterPopout === calendarPopout)
                 PopoutService.controlCenterPopout = null;
-            }
         }
 
         content: Component {
@@ -752,701 +748,698 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
 
-        delegate: PanelWindow {
-            id: barWindow
+        delegate: Component {
+            PanelWindow {
+                id: barWindow
 
-            property var modelData
+                property var modelData
 
-            screen: modelData
-            visible: true
+                screen: modelData
+                visible: true
 
-            anchors {
-                top: true
-                left: true
-                right: true
-            }
-
-            implicitHeight: 40
-            color: "transparent"
-
-            WlrLayershell.layer: WlrLayer.Top
-            WlrLayershell.namespace: "skwig:dms-poc-bar"
-
-            function closeOtherPopouts(activePopup) {
-                if (batteryPopout !== activePopup)
-                    batteryPopout.close();
-
-                if (networkPopout !== activePopup)
-                    networkPopout.close();
-
-                if (bluetoothPopout !== activePopup)
-                    bluetoothPopout.close();
-
-                if (audioPopout !== activePopup)
-                    audioPopout.close();
-
-                if (systemTrayPopout !== activePopup)
-                    systemTrayPopout.close();
-
-                if (calendarPopout !== activePopup)
-                    calendarPopout.close();
-
-                if (notificationCenterPopout !== activePopup) {
-                    notificationCenterPopout.notificationHistoryVisible = false;
-                }
-            }
-
-            function toggleDetailPopup(popup, button) {
-                if (!screen)
-                    return;
-
-                const wasOpen = popup.shouldBeVisible;
-
-                closeOtherPopouts(popup);
-                PopoutService.controlCenterPopout = popup;
-
-                const buttonPosition = button.mapToItem(barBackground, 0, 0);
-
-                const triggerX = buttonPosition.x;
-                const triggerY = implicitHeight + 4;
-
-                popup.setTriggerPosition(triggerX, triggerY, button.width, "right", screen, SettingsData.Position.Top, implicitHeight, 0, null);
-
-                if (wasOpen)
-                    popup.close();
-                else
-                    popup.open();
-            }
-
-            function toggleNotificationCenter(button) {
-                if (!screen)
-                    return;
-
-                const wasOpen = notificationCenterPopout.notificationHistoryVisible || notificationCenterPopout.shouldBeVisible;
-
-                closeOtherPopouts(notificationCenterPopout);
-
-                const buttonPosition = button.mapToItem(barBackground, 0, 0);
-
-                const triggerX = buttonPosition.x;
-                const triggerY = implicitHeight + 4;
-
-                notificationCenterPopout.triggerScreen = screen;
-
-                notificationCenterPopout.setTriggerPosition(triggerX, triggerY, button.width, "right", screen, SettingsData.Position.Top, implicitHeight, 0, null);
-
-                notificationCenterPopout.notificationHistoryVisible = !wasOpen;
-            }
-
-            Rectangle {
-                id: barBackground
-
-                anchors.fill: parent
-                color: Qt.rgba(0, 0, 0, 0.4)
-
-                /* Active window title on the left side of the bar. */
-                Item {
-                    id: windowTitleArea
-
-                    anchors {
-                        top: parent.top
-                        left: parent.left
-                        right: workspaceSwitcher.visible ? workspaceSwitcher.left : rightButtons.left
-                        bottom: parent.bottom
-
-                        leftMargin: 12
-                        rightMargin: 12
-                    }
-
-                    clip: true
-
-                    Row {
-                        anchors {
-                            left: parent.left
-                            right: parent.right
-                            verticalCenter: parent.verticalCenter
-                        }
-
-                        spacing: 8
-
-                        Item {
-                            id: activeWindowIconContainer
-
-                            width: 20
-                            height: 20
-
-                            IconImage {
-                                id: activeWindowIcon
-
-                                anchors.fill: parent
-
-                                source: root.activeWindowIconSource
-
-                                visible: root.activeWindow && status === Image.Ready
-
-                                smooth: true
-                                mipmap: true
-                                asynchronous: true
-                            }
-
-                            DankIcon {
-                                anchors.centerIn: parent
-
-                                name: "desktop_windows"
-                                size: 19
-                                color: "#ffffff"
-
-                                visible: !root.activeWindow
-                            }
-
-                            DankIcon {
-                                anchors.centerIn: parent
-
-                                name: "sports_esports"
-                                size: 19
-                                color: "#ffffff"
-
-                                visible: root.activeWindow && root.activeWindow.appId && activeWindowIcon.status !== Image.Ready && Paths.isSteamApp(root.activeWindow.appId)
-                            }
-
-                            StyledText {
-                                anchors.centerIn: parent
-
-                                text: {
-                                    if (!root.activeWindow?.appId)
-                                        return "?";
-
-                                    const appName = Paths.getAppName(root.activeWindow.appId, root.activeDesktopEntry);
-
-                                    return appName ? appName.charAt(0).toUpperCase() : "?";
-                                }
-
-                                color: "#ffffff"
-                                font.pixelSize: 11
-                                font.weight: Font.Bold
-
-                                visible: root.activeWindow && root.activeWindow.appId && activeWindowIcon.status !== Image.Ready && !Paths.isSteamApp(root.activeWindow.appId)
-                            }
-                        }
-
-                        StyledText {
-                            width: Math.max(0, parent.width - activeWindowIconContainer.width - parent.spacing)
-
-                            anchors.verticalCenter: parent.verticalCenter
-
-                            text: root.activeWindowTitle
-
-                            color: "#ffffff"
-                            font.pixelSize: 15
-                            font.weight: Font.Medium
-
-                            elide: Text.ElideRight
-                            wrapMode: Text.NoWrap
-                            maximumLineCount: 1
-                        }
-                    }
+                anchors {
+                    top: true
+                    left: true
+                    right: true
                 }
 
-                /*
-                 * Stock DMS workspace switcher, centered on the screen.
-                 *
-                 * It reads Hyprland's reactive workspace model, highlights
-                 * the active workspace, supports click-to-switch and wheel
-                 * navigation, and follows the DMS workspace appearance settings.
-                 */
-                QtObject {
-                    id: workspaceBarConfig
+                implicitHeight: 40
+                color: "transparent"
 
-                    property bool noBackground: true
-                    property bool removeWidgetPadding: true
-                    property bool widgetOutlineEnabled: false
-                    property bool maximizeWidgetIcons: false
-                    property bool maximizeWidgetText: false
-                    property real fontScale: 1.0
-                    property real iconScale: 1.0
-                    property real widgetPadding: 0
-                    property real widgetTransparency: 0
+                WlrLayershell.layer: WlrLayer.Top
+                WlrLayershell.namespace: "skwig:dms-poc-bar"
+
+                function closeOtherPopouts(activePopup) {
+                    if (batteryPopout !== activePopup)
+                        batteryPopout.close();
+
+                    if (networkPopout !== activePopup)
+                        networkPopout.close();
+
+                    if (bluetoothPopout !== activePopup)
+                        bluetoothPopout.close();
+
+                    if (audioPopout !== activePopup)
+                        audioPopout.close();
+
+                    if (systemTrayPopout !== activePopup)
+                        systemTrayPopout.close();
+
+                    if (calendarPopout !== activePopup)
+                        calendarPopout.close();
+
+                    if (notificationCenterPopout !== activePopup)
+                        notificationCenterPopout.notificationHistoryVisible = false;
                 }
 
-                WorkspaceSwitcher {
-                    id: workspaceSwitcher
+                function toggleDetailPopup(popup, button) {
+                    if (!screen)
+                        return;
 
-                    anchors.centerIn: parent
+                    const wasOpen = popup.shouldBeVisible;
 
-                    widgetHeight: 30
-                    barThickness: barWindow.implicitHeight
-                    parentScreen: barWindow.screen
-                    blurBarWindow: barWindow
-                    barConfig: workspaceBarConfig
+                    closeOtherPopouts(popup);
+                    PopoutService.controlCenterPopout = popup;
+
+                    const buttonPosition = button.mapToItem(barBackground, 0, 0);
+
+                    const triggerX = buttonPosition.x;
+                    const triggerY = implicitHeight + 4;
+
+                    popup.setTriggerPosition(triggerX, triggerY, button.width, "right", screen, SettingsData.Position.Top, implicitHeight, 0, null);
+
+                    if (wasOpen)
+                        popup.close();
+                    else
+                        popup.open();
                 }
 
-                QtObject {
-                    id: trayMenuAxis
+                function toggleNotificationCenter(button) {
+                    if (!screen)
+                        return;
 
-                    property string edge: "top"
-                }
+                    const wasOpen = notificationCenterPopout.notificationHistoryVisible || notificationCenterPopout.shouldBeVisible;
 
-                /*
-                 * Hidden stock DMS tray widget used only to create DMS's
-                 * themed StatusNotifier menus.
-                 */
-                SystemTrayBar {
-                    id: trayMenuHost
+                    closeOtherPopouts(notificationCenterPopout);
 
-                    visible: false
+                    const buttonPosition = button.mapToItem(barBackground, 0, 0);
 
-                    parentWindow: barWindow
-                    parentScreen: barWindow.screen
+                    const triggerX = buttonPosition.x;
+                    const triggerY = implicitHeight + 4;
 
-                    widgetThickness: barWindow.implicitHeight
-                    barThickness: barWindow.implicitHeight
-                    barSpacing: 4
+                    notificationCenterPopout.triggerScreen = screen;
 
-                    axis: trayMenuAxis
-                    barConfig: null
+                    notificationCenterPopout.setTriggerPosition(triggerX, triggerY, button.width, "right", screen, SettingsData.Position.Top, implicitHeight, 0, null);
 
-                    isAtBottom: false
-                    isAutoHideBar: false
-
-                    useAutomaticOverflow: false
-                    useOverflowPopup: false
+                    notificationCenterPopout.notificationHistoryVisible = !wasOpen;
                 }
 
                 Rectangle {
-                    id: submapIndicator
+                    id: barBackground
 
-                    anchors {
-                        right: rightButtons.left
-                        rightMargin: 6
-                        verticalCenter: parent.verticalCenter
-                    }
-
-                    visible: root.activeSubmap !== ""
-
-                    width: submapText.implicitWidth + 20
-                    height: 28
-                    radius: 4
-
-                    color: Qt.rgba(1, 1, 1, 0.14)
-
-                    StyledText {
-                        id: submapText
-
-                        anchors.centerIn: parent
-
-                        text: root.activeSubmap
-
-                        color: Theme.primary
-                        font.pixelSize: 14
-                        font.weight: Font.Medium
-                    }
-                }
-
-                Row {
-                    id: rightButtons
-
-                    anchors {
-                        top: parent.top
-                        right: parent.right
-                        bottom: parent.bottom
-                    }
-
-                    spacing: 0
+                    anchors.fill: parent
+                    color: Qt.rgba(0, 0, 0, 0.4)
 
                     /*
-                     * System tray button
+                     * Active window title on the left.
                      */
-                    Rectangle {
-                        id: systemTrayButton
+                    Item {
+                        id: windowTitleArea
 
-                        width: 40
-                        height: rightButtons.height
-                        radius: 4
+                        anchors {
+                            top: parent.top
+                            left: parent.left
 
-                        color: {
-                            if (systemTrayPopout.shouldBeVisible)
-                                return Qt.rgba(1, 1, 1, 0.16);
+                            right: workspaceSwitcher.visible ? workspaceSwitcher.left : rightButtons.left
 
-                            if (systemTrayMouseArea.containsMouse)
-                                return Qt.rgba(1, 1, 1, 0.10);
+                            bottom: parent.bottom
 
-                            return "transparent";
+                            leftMargin: 12
+                            rightMargin: 12
                         }
 
-                        DankIcon {
-                            anchors.centerIn: parent
-
-                            name: "apps"
-                            size: 22
-                            color: "#ffffff"
-                        }
-
-                        MouseArea {
-                            id: systemTrayMouseArea
-
-                            anchors.fill: parent
-                            hoverEnabled: true
-
-                            cursorShape: Qt.PointingHandCursor
-
-                            onClicked: {
-                                systemTrayPopout.menuHost = trayMenuHost;
-                                systemTrayPopout.menuAnchorItem = systemTrayButton;
-                                systemTrayPopout.menuScreen = barWindow.screen;
-
-                                barWindow.toggleDetailPopup(systemTrayPopout, systemTrayButton);
-                            }
-                        }
-                    }
-
-                    /*
-                     * Battery button
-                     */
-                    Rectangle {
-                        id: batteryButton
-
-                        visible: BatteryService.batteryAvailable
-
-                        width: Math.max(40, batteryButtonContent.implicitWidth + 16)
-                        height: rightButtons.height
-                        radius: 4
-
-                        color: {
-                            if (batteryPopout.shouldBeVisible)
-                                return Qt.rgba(1, 1, 1, 0.16);
-
-                            if (batteryMouseArea.containsMouse)
-                                return Qt.rgba(1, 1, 1, 0.10);
-
-                            return "transparent";
-                        }
+                        clip: true
 
                         Row {
-                            id: batteryButtonContent
+                            anchors {
+                                left: parent.left
+                                right: parent.right
+                                verticalCenter: parent.verticalCenter
+                            }
 
-                            anchors.centerIn: parent
-                            spacing: 4
+                            spacing: 8
 
-                            DankIcon {
-                                anchors.verticalCenter: parent.verticalCenter
+                            Item {
+                                id: activeWindowIconContainer
 
-                                name: BatteryService.getBatteryIcon()
-                                size: 22
+                                width: 20
+                                height: 20
 
-                                color: {
-                                    if (BatteryService.isLowBattery && !BatteryService.isCharging)
-                                        return Theme.error;
+                                IconImage {
+                                    id: activeWindowIcon
 
-                                    return "#ffffff";
+                                    anchors.fill: parent
+
+                                    source: root.activeWindowIconSource
+
+                                    visible: root.activeWindow && status === Image.Ready
+
+                                    smooth: true
+                                    mipmap: true
+                                    asynchronous: true
+                                }
+
+                                DankIcon {
+                                    anchors.centerIn: parent
+
+                                    name: "desktop_windows"
+                                    size: 19
+                                    color: "#ffffff"
+
+                                    visible: !root.activeWindow
+                                }
+
+                                DankIcon {
+                                    anchors.centerIn: parent
+
+                                    name: "sports_esports"
+                                    size: 19
+                                    color: "#ffffff"
+
+                                    visible: root.activeWindow && root.activeWindow.appId && activeWindowIcon.status !== Image.Ready && Paths.isSteamApp(root.activeWindow.appId)
+                                }
+
+                                StyledText {
+                                    anchors.centerIn: parent
+
+                                    text: {
+                                        if (!root.activeWindow?.appId)
+                                            return "?";
+
+                                        const appName = Paths.getAppName(root.activeWindow.appId, root.activeDesktopEntry);
+
+                                        return appName ? appName.charAt(0).toUpperCase() : "?";
+                                    }
+
+                                    color: "#ffffff"
+                                    font.pixelSize: 11
+                                    font.weight: Font.Bold
+
+                                    visible: root.activeWindow && root.activeWindow.appId && activeWindowIcon.status !== Image.Ready && !Paths.isSteamApp(root.activeWindow.appId)
                                 }
                             }
 
                             StyledText {
+                                width: Math.max(0, parent.width - activeWindowIconContainer.width - parent.spacing)
+
                                 anchors.verticalCenter: parent.verticalCenter
 
-                                text: Math.round(BatteryService.batteryLevel) + "%"
+                                text: root.activeWindowTitle
 
-                                color: {
-                                    if (BatteryService.isLowBattery && !BatteryService.isCharging)
-                                        return Theme.error;
-
-                                    return "#ffffff";
-                                }
-
-                                font.pixelSize: 14
+                                color: "#ffffff"
+                                font.pixelSize: 15
                                 font.weight: Font.Medium
-                            }
-                        }
 
-                        MouseArea {
-                            id: batteryMouseArea
-
-                            anchors.fill: parent
-                            hoverEnabled: true
-
-                            cursorShape: Qt.PointingHandCursor
-
-                            onClicked: {
-                                barWindow.toggleDetailPopup(batteryPopout, batteryButton);
+                                elide: Text.ElideRight
+                                wrapMode: Text.NoWrap
+                                maximumLineCount: 1
                             }
                         }
                     }
 
                     /*
-                     * Network button
+                     * Stock DMS workspace switcher.
                      */
-                    Rectangle {
-                        id: networkButton
+                    QtObject {
+                        id: workspaceBarConfig
 
-                        width: 40
-                        height: rightButtons.height
-                        radius: 4
+                        property bool noBackground: true
+                        property bool removeWidgetPadding: true
+                        property bool widgetOutlineEnabled: false
+                        property bool maximizeWidgetIcons: false
+                        property bool maximizeWidgetText: false
+                        property real fontScale: 1.0
+                        property real iconScale: 1.0
+                        property real widgetPadding: 0
+                        property real widgetTransparency: 0
+                    }
 
-                        color: {
-                            if (networkPopout.shouldBeVisible)
-                                return Qt.rgba(1, 1, 1, 0.16);
+                    WorkspaceSwitcher {
+                        id: workspaceSwitcher
 
-                            if (networkMouseArea.containsMouse)
-                                return Qt.rgba(1, 1, 1, 0.10);
+                        anchors.centerIn: parent
 
-                            return "transparent";
-                        }
+                        widgetHeight: 30
+                        barThickness: barWindow.implicitHeight
+                        parentScreen: barWindow.screen
+                        blurBarWindow: barWindow
+                        barConfig: workspaceBarConfig
+                    }
 
-                        DankIcon {
-                            anchors.centerIn: parent
+                    QtObject {
+                        id: trayMenuAxis
 
-                            name: {
-                                if (!NetworkService.networkAvailable || NetworkService.networkStatus === "disconnected")
-                                    return "wifi_off";
-
-                                if (NetworkService.networkStatus === "ethernet")
-                                    return "lan";
-
-                                return NetworkService.wifiSignalIcon || "wifi_off";
-                            }
-
-                            size: 22
-                            color: "#ffffff"
-                        }
-
-                        MouseArea {
-                            id: networkMouseArea
-
-                            anchors.fill: parent
-                            hoverEnabled: true
-
-                            cursorShape: Qt.PointingHandCursor
-
-                            onClicked: {
-                                barWindow.toggleDetailPopup(networkPopout, networkButton);
-                            }
-                        }
+                        property bool isVertical: false
+                        property bool isHorizontal: true
+                        property string edge: "top"
                     }
 
                     /*
-                     * Bluetooth button
+                     * Hidden stock tray widget used for themed menus.
                      */
-                    Rectangle {
-                        id: bluetoothButton
+                    SystemTrayBar {
+                        id: trayMenuHost
 
-                        width: 40
-                        height: rightButtons.height
+                        visible: false
+
+                        parentWindow: barWindow
+                        parentScreen: barWindow.screen
+
+                        widgetThickness: barWindow.implicitHeight
+                        barThickness: barWindow.implicitHeight
+                        barSpacing: 4
+
+                        axis: trayMenuAxis
+                        barConfig: null
+
+                        isAtBottom: false
+                        isAutoHideBar: false
+
+                        useAutomaticOverflow: false
+                        useOverflowPopup: false
+                    }
+
+                    Rectangle {
+                        id: submapIndicator
+
+                        anchors {
+                            right: rightButtons.left
+                            rightMargin: 6
+                            verticalCenter: parent.verticalCenter
+                        }
+
+                        visible: root.activeSubmap !== ""
+
+                        width: submapText.implicitWidth + 20
+                        height: 28
                         radius: 4
 
-                        color: {
-                            if (bluetoothPopout.shouldBeVisible) {
-                                return Qt.rgba(1, 1, 1, 0.16);
-                            }
+                        color: Qt.rgba(1, 1, 1, 0.14)
 
-                            if (bluetoothMouseArea.containsMouse) {
-                                return Qt.rgba(1, 1, 1, 0.10);
-                            }
+                        StyledText {
+                            id: submapText
 
-                            return "transparent";
-                        }
-
-                        DankIcon {
                             anchors.centerIn: parent
 
-                            name: {
-                                if (!BluetoothService.available || !BluetoothService.enabled)
-                                    return "bluetooth_disabled";
+                            text: root.activeSubmap
 
-                                if (BluetoothService.connected)
-                                    return "bluetooth_connected";
-
-                                return "bluetooth";
-                            }
-
-                            size: 22
-                            color: "#ffffff"
-                        }
-
-                        MouseArea {
-                            id: bluetoothMouseArea
-
-                            anchors.fill: parent
-                            hoverEnabled: true
-
-                            cursorShape: Qt.PointingHandCursor
-
-                            onClicked: {
-                                barWindow.toggleDetailPopup(bluetoothPopout, bluetoothButton);
-                            }
+                            color: Theme.primary
+                            font.pixelSize: 14
+                            font.weight: Font.Medium
                         }
                     }
 
-                    /*
-                     * Audio button
-                     */
-                    Rectangle {
-                        id: audioButton
+                    Row {
+                        id: rightButtons
 
-                        width: 40
-                        height: rightButtons.height
-                        radius: 4
-
-                        color: {
-                            if (audioPopout.shouldBeVisible)
-                                return Qt.rgba(1, 1, 1, 0.16);
-
-                            if (audioMouseArea.containsMouse)
-                                return Qt.rgba(1, 1, 1, 0.10);
-
-                            return "transparent";
+                        anchors {
+                            top: parent.top
+                            right: parent.right
+                            bottom: parent.bottom
                         }
 
-                        DankIcon {
-                            anchors.centerIn: parent
+                        spacing: 0
 
-                            name: {
-                                const audio = AudioService.sink?.audio;
+                        /*
+                         * System tray button
+                         */
+                        Rectangle {
+                            id: systemTrayButton
 
-                                if (!audio || audio.muted || audio.volume <= 0)
-                                    return "volume_off";
+                            width: 40
+                            height: rightButtons.height
+                            radius: 4
 
-                                if (audio.volume <= 0.33)
-                                    return "volume_down";
+                            color: {
+                                if (systemTrayPopout.shouldBeVisible)
+                                    return Qt.rgba(1, 1, 1, 0.16);
 
-                                return "volume_up";
+                                if (systemTrayMouseArea.containsMouse)
+                                    return Qt.rgba(1, 1, 1, 0.10);
+
+                                return "transparent";
                             }
-
-                            size: 22
-                            color: "#ffffff"
-                        }
-
-                        MouseArea {
-                            id: audioMouseArea
-
-                            anchors.fill: parent
-                            hoverEnabled: true
-
-                            cursorShape: Qt.PointingHandCursor
-
-                            onClicked: {
-                                barWindow.toggleDetailPopup(audioPopout, audioButton);
-                            }
-                        }
-                    }
-
-                    /*
-                     * Notification button
-                     */
-                    Rectangle {
-                        id: notificationButton
-
-                        width: 40
-                        height: rightButtons.height
-                        radius: 4
-
-                        readonly property bool centerVisible: notificationCenterPopout.notificationHistoryVisible || notificationCenterPopout.shouldBeVisible
-
-                        readonly property bool hasNotifications: NotificationService.notifications.length > 0
-
-                        color: {
-                            if (centerVisible)
-                                return Qt.rgba(1, 1, 1, 0.16);
-
-                            if (notificationMouseArea.containsMouse) {
-                                return Qt.rgba(1, 1, 1, 0.10);
-                            }
-
-                            return "transparent";
-                        }
-
-                        Item {
-                            anchors.centerIn: parent
-
-                            width: 24
-                            height: 24
 
                             DankIcon {
-                                id: notificationIcon
+                                anchors.centerIn: parent
+
+                                name: "apps"
+                                size: 22
+                                color: "#ffffff"
+                            }
+
+                            MouseArea {
+                                id: systemTrayMouseArea
+
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+
+                                onClicked: {
+                                    systemTrayPopout.menuHost = trayMenuHost;
+                                    systemTrayPopout.menuAnchorItem = systemTrayButton;
+
+                                    systemTrayPopout.menuScreen = barWindow.screen;
+
+                                    barWindow.toggleDetailPopup(systemTrayPopout, systemTrayButton);
+                                }
+                            }
+                        }
+
+                        /*
+                         * Battery button
+                         */
+                        Rectangle {
+                            id: batteryButton
+
+                            visible: BatteryService.batteryAvailable
+
+                            width: Math.max(40, batteryButtonContent.implicitWidth + 16)
+
+                            height: rightButtons.height
+                            radius: 4
+
+                            color: {
+                                if (batteryPopout.shouldBeVisible)
+                                    return Qt.rgba(1, 1, 1, 0.16);
+
+                                if (batteryMouseArea.containsMouse)
+                                    return Qt.rgba(1, 1, 1, 0.10);
+
+                                return "transparent";
+                            }
+
+                            Row {
+                                id: batteryButtonContent
+
+                                anchors.centerIn: parent
+                                spacing: 4
+
+                                DankIcon {
+                                    anchors.verticalCenter: parent.verticalCenter
+
+                                    name: BatteryService.getBatteryIcon()
+                                    size: 22
+
+                                    color: {
+                                        if (BatteryService.isLowBattery && !BatteryService.isCharging) {
+                                            return Theme.error;
+                                        }
+
+                                        return "#ffffff";
+                                    }
+                                }
+
+                                StyledText {
+                                    anchors.verticalCenter: parent.verticalCenter
+
+                                    text: Math.round(BatteryService.batteryLevel) + "%"
+
+                                    color: {
+                                        if (BatteryService.isLowBattery && !BatteryService.isCharging) {
+                                            return Theme.error;
+                                        }
+
+                                        return "#ffffff";
+                                    }
+
+                                    font.pixelSize: 14
+                                    font.weight: Font.Medium
+                                }
+                            }
+
+                            MouseArea {
+                                id: batteryMouseArea
+
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+
+                                onClicked: {
+                                    barWindow.toggleDetailPopup(batteryPopout, batteryButton);
+                                }
+                            }
+                        }
+
+                        /*
+                         * Network button
+                         */
+                        Rectangle {
+                            id: networkButton
+
+                            width: 40
+                            height: rightButtons.height
+                            radius: 4
+
+                            color: {
+                                if (networkPopout.shouldBeVisible)
+                                    return Qt.rgba(1, 1, 1, 0.16);
+
+                                if (networkMouseArea.containsMouse)
+                                    return Qt.rgba(1, 1, 1, 0.10);
+
+                                return "transparent";
+                            }
+
+                            DankIcon {
+                                anchors.centerIn: parent
+
+                                name: {
+                                    if (!NetworkService.networkAvailable || NetworkService.networkStatus === "disconnected") {
+                                        return "wifi_off";
+                                    }
+
+                                    if (NetworkService.networkStatus === "ethernet") {
+                                        return "lan";
+                                    }
+
+                                    return NetworkService.wifiSignalIcon || "wifi_off";
+                                }
+
+                                size: 22
+                                color: "#ffffff"
+                            }
+
+                            MouseArea {
+                                id: networkMouseArea
+
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+
+                                onClicked: {
+                                    barWindow.toggleDetailPopup(networkPopout, networkButton);
+                                }
+                            }
+                        }
+
+                        /*
+                         * Bluetooth button
+                         */
+                        Rectangle {
+                            id: bluetoothButton
+
+                            width: 40
+                            height: rightButtons.height
+                            radius: 4
+
+                            color: {
+                                if (bluetoothPopout.shouldBeVisible)
+                                    return Qt.rgba(1, 1, 1, 0.16);
+
+                                if (bluetoothMouseArea.containsMouse)
+                                    return Qt.rgba(1, 1, 1, 0.10);
+
+                                return "transparent";
+                            }
+
+                            DankIcon {
+                                anchors.centerIn: parent
+
+                                name: {
+                                    if (!BluetoothService.available || !BluetoothService.enabled) {
+                                        return "bluetooth_disabled";
+                                    }
+
+                                    if (BluetoothService.connected)
+                                        return "bluetooth_connected";
+
+                                    return "bluetooth";
+                                }
+
+                                size: 22
+                                color: "#ffffff"
+                            }
+
+                            MouseArea {
+                                id: bluetoothMouseArea
+
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+
+                                onClicked: {
+                                    barWindow.toggleDetailPopup(bluetoothPopout, bluetoothButton);
+                                }
+                            }
+                        }
+
+                        /*
+                         * Audio button
+                         */
+                        Rectangle {
+                            id: audioButton
+
+                            width: 40
+                            height: rightButtons.height
+                            radius: 4
+
+                            color: {
+                                if (audioPopout.shouldBeVisible)
+                                    return Qt.rgba(1, 1, 1, 0.16);
+
+                                if (audioMouseArea.containsMouse)
+                                    return Qt.rgba(1, 1, 1, 0.10);
+
+                                return "transparent";
+                            }
+
+                            DankIcon {
+                                anchors.centerIn: parent
+
+                                name: {
+                                    const audio = AudioService.sink?.audio;
+
+                                    if (!audio || audio.muted || audio.volume <= 0) {
+                                        return "volume_off";
+                                    }
+
+                                    if (audio.volume <= 0.33)
+                                        return "volume_down";
+
+                                    return "volume_up";
+                                }
+
+                                size: 22
+                                color: "#ffffff"
+                            }
+
+                            MouseArea {
+                                id: audioMouseArea
+
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+
+                                onClicked: {
+                                    barWindow.toggleDetailPopup(audioPopout, audioButton);
+                                }
+                            }
+                        }
+
+                        /*
+                         * Notification button
+                         */
+                        Rectangle {
+                            id: notificationButton
+
+                            width: 40
+                            height: rightButtons.height
+                            radius: 4
+
+                            readonly property bool centerVisible: notificationCenterPopout.notificationHistoryVisible || notificationCenterPopout.shouldBeVisible
+
+                            readonly property bool hasNotifications: NotificationService.notifications.length > 0
+
+                            color: {
+                                if (centerVisible)
+                                    return Qt.rgba(1, 1, 1, 0.16);
+
+                                if (notificationMouseArea.containsMouse)
+                                    return Qt.rgba(1, 1, 1, 0.10);
+
+                                return "transparent";
+                            }
+
+                            Item {
+                                anchors.centerIn: parent
+
+                                width: 24
+                                height: 24
+
+                                DankIcon {
+                                    id: notificationIcon
+
+                                    anchors.centerIn: parent
+
+                                    name: SessionData.doNotDisturb ? "notifications_off" : "notifications"
+
+                                    size: 22
+
+                                    color: SessionData.doNotDisturb ? Theme.primary : "#ffffff"
+                                }
+
+                                Rectangle {
+                                    width: 6
+                                    height: 6
+                                    radius: 3
+
+                                    anchors {
+                                        top: notificationIcon.top
+                                        right: notificationIcon.right
+                                    }
+
+                                    color: Theme.error
+                                    visible: notificationButton.hasNotifications
+                                }
+                            }
+
+                            MouseArea {
+                                id: notificationMouseArea
+
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+
+                                onClicked: {
+                                    barWindow.toggleNotificationCenter(notificationButton);
+                                }
+                            }
+                        }
+
+                        /*
+                         * Clock button
+                         */
+                        Rectangle {
+                            id: clockButton
+
+                            width: Math.max(68, timeText.implicitWidth + 20)
+
+                            height: rightButtons.height
+                            radius: 4
+
+                            color: {
+                                if (calendarPopout.shouldBeVisible)
+                                    return Qt.rgba(1, 1, 1, 0.16);
+
+                                if (clockMouseArea.containsMouse)
+                                    return Qt.rgba(1, 1, 1, 0.10);
+
+                                return "transparent";
+                            }
+
+                            StyledText {
+                                id: timeText
 
                                 anchors.centerIn: parent
 
-                                name: SessionData.doNotDisturb ? "notifications_off" : "notifications"
+                                text: root.formatBarTime(barClock.date)
 
-                                size: 22
-
-                                color: SessionData.doNotDisturb ? Theme.primary : "#ffffff"
+                                color: "#ffffff"
+                                font.pixelSize: 16
+                                font.weight: Font.Medium
                             }
 
-                            Rectangle {
-                                width: 6
-                                height: 6
-                                radius: 3
+                            MouseArea {
+                                id: clockMouseArea
 
-                                anchors {
-                                    top: notificationIcon.top
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
 
-                                    right: notificationIcon.right
+                                onClicked: {
+                                    barWindow.toggleDetailPopup(calendarPopout, clockButton);
                                 }
-
-                                color: Theme.error
-
-                                visible: notificationButton.hasNotifications
-                            }
-                        }
-
-                        MouseArea {
-                            id: notificationMouseArea
-
-                            anchors.fill: parent
-                            hoverEnabled: true
-
-                            cursorShape: Qt.PointingHandCursor
-
-                            onClicked: {
-                                barWindow.toggleNotificationCenter(notificationButton);
-                            }
-                        }
-                    }
-
-                    /*
-                     * Clock button
-                     */
-                    Rectangle {
-                        id: clockButton
-
-                        width: Math.max(68, timeText.implicitWidth + 20)
-
-                        height: rightButtons.height
-                        radius: 4
-
-                        color: {
-                            if (calendarPopout.shouldBeVisible) {
-                                return Qt.rgba(1, 1, 1, 0.16);
-                            }
-
-                            if (clockMouseArea.containsMouse)
-                                return Qt.rgba(1, 1, 1, 0.10);
-
-                            return "transparent";
-                        }
-
-                        StyledText {
-                            id: timeText
-
-                            anchors.centerIn: parent
-
-                            text: root.formatBarTime(barClock.date)
-
-                            color: "#ffffff"
-                            font.pixelSize: 16
-                            font.weight: Font.Medium
-                        }
-
-                        MouseArea {
-                            id: clockMouseArea
-
-                            anchors.fill: parent
-                            hoverEnabled: true
-
-                            cursorShape: Qt.PointingHandCursor
-
-                            onClicked: {
-                                barWindow.toggleDetailPopup(calendarPopout, clockButton);
                             }
                         }
                     }
