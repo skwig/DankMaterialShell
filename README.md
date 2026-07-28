@@ -6,3 +6,5 @@
 - notif sound na tu kvapku
 - brightness osd nefunguje
 - network qrclick / ... click nic nerobi
+
+- Using DankMaterialShell as a very good component library, reorganized to my liking
