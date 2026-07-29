@@ -326,7 +326,19 @@ Rectangle {
                         return [];
 
                     const pinnedList = root.getPinnedDevices();
-                    const devices = [...BluetoothService.adapter.devices.values.filter(dev => dev && (dev.paired || dev.trusted))];
+                    const deviceMap = new Map();
+
+                    // AirPods can appear in Quickshell's global Bluetooth device cache as bonded but not in the adapter-local list while offline.
+                    Bluetooth.devices.values.forEach(dev => {
+                        if (dev)
+                            deviceMap.set(dev.dbusPath || dev.address || dev.name || dev.deviceName, dev);
+                    });
+                    BluetoothService.adapter.devices.values.forEach(dev => {
+                        if (dev)
+                            deviceMap.set(dev.dbusPath || dev.address || dev.name || dev.deviceName, dev);
+                    });
+
+                    const devices = [...deviceMap.values()].filter(dev => dev && (dev.paired || dev.trusted || dev.bonded));
 
                     devices.sort((a, b) => {
                         const aPinnedIndex = pinnedList.indexOf(a.address);
