@@ -8,8 +8,7 @@ import qs.Widgets
 DankPopoutStandalone {
     id: root
 
-    layerNamespace: "skwig:calendar-poc"
-    popupWidth: SettingsData.showWeekNumber ? 760 : 724
+    popupWidth: 724
     popupHeight: 390
     positioning: ""
     fullHeightSurface: true

@@ -9,7 +9,6 @@ DankPopoutStandalone {
 
     property real desiredContentHeight: 360
 
-    layerNamespace: "skwig:battery-poc"
     popupWidth: 520
     popupHeight: Math.min(Math.max(320, desiredContentHeight), Math.max(320, (screen?.height ?? 1080) - 96))
     positioning: ""

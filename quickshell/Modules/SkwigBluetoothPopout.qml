@@ -7,7 +7,6 @@ import qs.Widgets
 DankPopoutStandalone {
     id: root
 
-    layerNamespace: "skwig:bluetooth-poc"
     popupWidth: 520
     popupHeight: Math.min(620, Math.max(360, (screen?.height ?? 1080) - 96))
     positioning: ""

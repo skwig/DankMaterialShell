@@ -28,7 +28,7 @@ PanelWindow {
     color: "transparent"
 
     WlrLayershell.layer: WlrLayer.Top
-    WlrLayershell.namespace: "skwig:dms-poc-bar"
+    WlrLayershell.namespace: "skwig:bar"
 
     function closeOtherPopouts(activePopup) {
         if (batteryPopout !== activePopup)
@@ -97,14 +97,22 @@ PanelWindow {
         anchors.fill: parent
         color: Qt.rgba(0, 0, 0, 0.4)
 
-        SkwigWindowTitle {
+        Row {
+            id: leftSection
+
             anchors {
                 top: parent.top
                 left: parent.left
-                right: workspaceSwitcher.visible ? workspaceSwitcher.left : rightButtons.left
                 bottom: parent.bottom
+                right: centerSection.left
+
                 leftMargin: 12
-                rightMargin: 12
+            }
+
+            SkwigWindowTitle {
+                anchors {
+                    fill: parent
+                }
             }
         }
 
@@ -112,34 +120,35 @@ PanelWindow {
             id: workspaceBarConfig
 
             property bool noBackground: true
-            property bool removeWidgetPadding: true
-            property bool widgetOutlineEnabled: false
-            property bool maximizeWidgetIcons: false
-            property bool maximizeWidgetText: false
-            property real fontScale: 1.0
-            property real iconScale: 1.0
-            property real widgetPadding: 0
-            property real widgetTransparency: 0
-        }
-
-        WorkspaceSwitcher {
-            id: workspaceSwitcher
-
-            anchors.centerIn: parent
-            widgetHeight: 30
-            barThickness: root.implicitHeight
-            parentScreen: root.screen
-            blurBarWindow: root
-            barConfig: workspaceBarConfig
         }
 
         Row {
-            id: rightButtons
+            id: centerSection
+
+            anchors {
+                centerIn: parent
+            }
+
+            WorkspaceSwitcher {
+                id: workspaceSwitcher
+
+                widgetHeight: 30
+                barThickness: root.implicitHeight
+                parentScreen: root.screen
+                blurBarWindow: root
+                barConfig: workspaceBarConfig
+            }
+        }
+
+        Row {
+            id: rightSection
 
             anchors {
                 top: parent.top
-                right: parent.right
                 bottom: parent.bottom
+                right: parent.right
+
+                rightMargin: 12
             }
 
             spacing: 0
