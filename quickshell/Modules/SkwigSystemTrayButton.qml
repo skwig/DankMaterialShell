@@ -65,7 +65,7 @@ Rectangle {
         cursorShape: Qt.PointingHandCursor
 
         onClicked: {
-            root.systemTrayPopout.menuHost = root.trayMenuHost;
+            root.systemTrayPopout.menuHost = trayMenuHost;
             root.systemTrayPopout.menuAnchorItem = root;
             root.systemTrayPopout.menuScreen = root.currentScreen;
             root.clicked(root);
