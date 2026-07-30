@@ -1,63 +1,157 @@
-//@ pragma Env QSG_RENDER_LOOP=threaded
-//@ pragma Env QT_MEDIA_BACKEND=ffmpeg
-//@ pragma Env QT_FFMPEG_DECODING_HW_DEVICE_TYPES=vaapi
-//@ pragma Env QT_FFMPEG_ENCODING_HW_DEVICE_TYPES=vaapi
 //@ pragma Env QT_WAYLAND_DISABLE_WINDOWDECORATION=1
 //@ pragma Env QT_QUICK_CONTROLS_STYLE=Material
 //@ pragma UseQApplication
-//@ pragma AppId com.danklinux.dms
+//@ pragma AppId dev.skwig.dms.bluetoothpoc
 
 import QtQuick
 import Quickshell
+
 import qs.Common
+import qs.Modals
+import qs.Modals.DankLauncherV2
 import qs.Modules
+import qs.Modules.Notifications.Popup
+import qs.Modules.OSD
 import qs.Services
 
 ShellRoot {
-    id: entrypoint
+    id: root
 
-    readonly property bool runGreeter: Quickshell.env("DMS_RUN_GREETER") === "1" || Quickshell.env("DMS_RUN_GREETER") === "true"
-    readonly property bool disableHotReload: Quickshell.env("DMS_DISABLE_HOT_RELOAD") === "1" || Quickshell.env("DMS_DISABLE_HOT_RELOAD") === "true"
+    readonly property var targetScreen: Quickshell.screens.length > 0 ? Quickshell.screens[0] : null
 
     Component.onCompleted: {
-        Quickshell.watchFiles = !disableHotReload;
+        SettingsData.osdPosition = SettingsData.Position.Left;
+        SettingsData.osdMediaVolumeEnabled = true;
+        SettingsData.osdMediaPlaybackEnabled = true;
+        SettingsData.showWorkspaceIndex = true;
+        SettingsData.showWorkspaceName = false;
+        SettingsData.showWorkspaceApps = false;
+        SettingsData.dankLauncherV2ShowFooter = false;
+        SettingsData.dankLauncherV2IncludeFilesInAll = false;
+        SettingsData.dankLauncherV2IncludeFoldersInAll = false;
+        SettingsData.rememberLastMode = false;
     }
 
-    Loader {
-        id: wallpaperLoader
-        active: !entrypoint.runGreeter
-        asynchronous: false
+    Variants {
+        model: Quickshell.screens
 
-        sourceComponent: Scope {
-            WallpaperBackground {}
-
-            Loader {
-                active: SettingsData.blurredWallpaperLayer && CompositorService.isNiri
-                asynchronous: false
-                sourceComponent: BlurredWallpaperBackground {}
-            }
+        delegate: SkwigWallpaper {
+            screen: modelData
         }
     }
 
-    Loader {
-        id: shellCoreLoader
-        active: !entrypoint.runGreeter
-        asynchronous: true
-        source: "ShellCore.qml"
-        onLoaded: dmsShellLoader.setSource("DMSShell.qml", {
-            core: item
-        })
+    Variants {
+        model: Quickshell.screens
+
+        delegate: SkwigBar {
+            modelData: modelData
+            screen: modelData
+            batteryPopout: batteryPopoutRef
+            networkPopout: networkPopoutRef
+            bluetoothPopout: bluetoothPopoutRef
+            audioPopout: audioPopoutRef
+            calendarPopout: calendarPopoutRef
+            systemTrayPopout: systemTrayPopoutRef
+            notificationCenterPopout: notificationCenterPopoutRef
+        }
     }
 
-    Loader {
-        id: dmsShellLoader
-        asynchronous: true
+    SkwigSystemTrayPopout {
+        id: systemTrayPopoutRef
+        screen: root.targetScreen
     }
 
-    Loader {
-        id: dmsGreeterLoader
-        active: entrypoint.runGreeter
-        asynchronous: false
-        source: "DMSGreeter.qml"
+    SkwigBatteryPopout {
+        id: batteryPopoutRef
+        screen: root.targetScreen
+    }
+
+    SkwigNetworkPopout {
+        id: networkPopoutRef
+        screen: root.targetScreen
+    }
+
+    SkwigBluetoothPopout {
+        id: bluetoothPopoutRef
+        screen: root.targetScreen
+    }
+
+    SkwigAudioPopout {
+        id: audioPopoutRef
+        screen: root.targetScreen
+    }
+
+    SkwigNotificationCenterPopout {
+        id: notificationCenterPopoutRef
+        triggerScreen: root.targetScreen
+    }
+
+    SkwigCalendarPopout {
+        id: calendarPopoutRef
+        screen: root.targetScreen
+    }
+
+    SkwigWifiPasswordModalHost {}
+
+    SkwigIpc {
+        launcherModal: dankLauncherV2Modal
+        pickerModal: genericPickerModal
+    }
+
+    SkwigPickerModal {
+        id: genericPickerModal
+    }
+
+    DankLauncherV2Modal {
+        id: dankLauncherV2Modal
+    }
+
+    Variants {
+        model: Quickshell.screens
+
+        delegate: NotificationPopupManager {
+            topMargin: 44
+        }
+    }
+
+    SkwigOsdHost {
+        surfaces: Component {
+            Item {
+                Variants {
+                    model: SettingsData.getFilteredScreens("osd")
+                    delegate: VolumeOSD {}
+                }
+
+                Variants {
+                    model: SettingsData.getFilteredScreens("osd")
+                    delegate: MediaVolumeOSD {}
+                }
+
+                Variants {
+                    model: SettingsData.getFilteredScreens("osd")
+                    delegate: MediaPlaybackOSD {}
+                }
+
+                Variants {
+                    model: SettingsData.getFilteredScreens("osd")
+                    delegate: MicVolumeOSD {}
+                }
+
+                Variants {
+                    model: SettingsData.getFilteredScreens("osd")
+                    delegate: BrightnessOSD {}
+                }
+
+                Variants {
+                    model: SettingsData.getFilteredScreens("osd")
+                    delegate: PowerProfileOSD {}
+                }
+
+                Variants {
+                    model: SettingsData.getFilteredScreens("osd")
+                    delegate: AudioOutputOSD {}
+                }
+            }
+        }
     }
 }
