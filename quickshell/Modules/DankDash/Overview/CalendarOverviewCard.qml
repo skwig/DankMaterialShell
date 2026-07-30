@@ -173,7 +173,6 @@ Rectangle {
         case Qt.Key_Enter:
         case Qt.Key_Space:
             root.selectedDate = calendarGrid.selectedDate;
-            showEventDetails = true;
             return true;
         }
         return false;
@@ -535,7 +534,6 @@ Rectangle {
                                 onClicked: {
                                     calendarGrid.selectedDate = dayDate;
                                     root.selectedDate = dayDate;
-                                    root.showEventDetails = true;
                                 }
                             }
                         }
