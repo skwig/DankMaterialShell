@@ -1,3 +1,15 @@
+> [!IMPORTANT]
+> Using DankMaterialShell as a very good component library in my personalized bar
+
+TODO:
+- sekundy v kalendar popupe
+- percenta v baterke
+- baterkovy power draw?
+- vypnut notification sound / vypnut ak notifikacia sama nema sound
+- brightness osd nefunguje
+- network qrclick / ... click nic nerobi
+
+
 # DankMaterialShell
 
 <div align="center">
@@ -94,102 +106,4 @@ Unified interface for network, Bluetooth, audio devices, display settings, and n
 **Smart Notifications**
 Notification center with grouping, rich text support, and keyboard navigation.
 
-**Media Integration**
-MPRIS player controls, calendar sync, weather widgets, and clipboard history with image previews.
-
-**Session Management**
-Lock screen, idle detection, auto-lock/suspend with separate AC/battery settings, and greeter support.
-
-**Plugin System**
-Extend functionality with the [plugin registry](https://plugins.danklinux.com).
-
-## Supported Compositors
-
-Works best with [niri](https://github.com/YaLTeR/niri), [Hyprland](https://hyprland.org/), [Sway](https://swaywm.org/), [MangoWC](https://github.com/DreamMaoMao/mangowc), [labwc](https://labwc.github.io/), [Scroll](https://github.com/dawsers/scroll), and [Miracle WM](https://github.com/miracle-wm-org/miracle-wm) with full workspace switching, overview integration, and monitor management. Other Wayland compositors work with reduced features.
-
-[Compositor configuration guide](https://danklinux.com/docs/dankmaterialshell/compositors)
-
-## Command Line Interface
-
-Control the shell from the command line or keybinds:
-
-```bash
-dms run              # Start the shell
-dms ipc call spotlight toggle
-dms ipc call audio setvolume 50
-dms ipc call wallpaper set /path/to/image.jpg
-dms brightness list  # List available displays
-dms plugins search   # Browse plugin registry
-```
-
-[Full CLI and IPC documentation](https://danklinux.com/docs/dankmaterialshell/keybinds-ipc)
-
-## Documentation
-
-- **Website:** [danklinux.com](https://danklinux.com)
-- **Docs:** [danklinux.com/docs](https://danklinux.com/docs/)
-- **Theming:** [Application themes](https://danklinux.com/docs/dankmaterialshell/application-themes) | [Custom themes](https://danklinux.com/docs/dankmaterialshell/custom-themes)
-- **Plugins:** [Development guide](https://danklinux.com/docs/dankmaterialshell/plugins-overview)
-- **Support:** [Ko-fi](https://ko-fi.com/avengemediallc)
-
-## Development
-
-See component-specific documentation:
-
-- **[quickshell/](quickshell/)** - QML shell development, widgets, and modules
-- **[core/](core/)** - Go backend, CLI tools, and system integration
-- **[distro/](distro/)** - Distribution packaging (Fedora, Debian, NixOS)
-
-### Building from Source
-
-**Core + Dankinstall:**
-
-```bash
-cd core
-make              # Build dms CLI
-make dankinstall  # Build installer
-```
-
-**Shell:**
-
-```bash
-quickshell -p quickshell/
-```
-
-**NixOS:**
-
-```nix
-{
-  inputs.dms.url = "github:AvengeMedia/DankMaterialShell";
-
-  # Use in home-manager or NixOS configuration
-  imports = [ inputs.dms.homeModules.dank-material-shell ];
-}
-```
-
-## Contributing
-
-Contributions welcome. Bug fixes, widgets, features, documentation, and plugins all help.
-
-1. Fork the repository
-2. Make your changes
-3. Test thoroughly
-4. Open a pull request
-
-For documentation contributions, see [DankLinux-Docs](https://github.com/AvengeMedia/DankLinux-Docs).
-
-## Credits
-
-- [quickshell](https://quickshell.org/) - Shell framework
-- [niri](https://github.com/YaLTeR/niri) - Scrolling window manager
-- [Ly-sec](http://github.com/ly-sec) - Wallpaper effects from [Noctalia](https://github.com/noctalia-dev/noctalia-shell)
-- [soramanew](https://github.com/soramanew) - [Caelestia](https://github.com/caelestia-dots/shell) inspiration
-- [end-4](https://github.com/end-4) - [dots-hyprland](https://github.com/end-4/dots-hyprland) inspiration
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=AvengeMedia/DankMaterialShell&type=date&legend=top-left)](https://www.star-history.com/#AvengeMedia/DankMaterialShell&type=date&legend=top-left)
-
-## License
-
-MIT License - See [LICENSE](LICENSE) for details.
+- Using DankMaterialShell as a very good component library, reorganized to my liking
