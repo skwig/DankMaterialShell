@@ -24,13 +24,13 @@ Item {
             verticalCenter: parent.verticalCenter
         }
 
-        spacing: 8
+        spacing: Theme.spacingS
 
         Item {
             id: activeWindowIconContainer
 
-            width: 20
-            height: 20
+            width: Theme.iconSizeSmall + Theme.spacingXS
+            height: Theme.iconSizeSmall + Theme.spacingXS
 
             IconImage {
                 id: activeWindowIcon
@@ -47,16 +47,16 @@ Item {
             DankIcon {
                 anchors.centerIn: parent
                 name: "desktop_windows"
-                size: 19
-                color: "#ffffff"
+                size: Theme.iconSizeSmall + Theme.spacingXXS + 1
+                color: Theme.surfaceText
                 visible: !root.activeWindow
             }
 
             DankIcon {
                 anchors.centerIn: parent
                 name: "sports_esports"
-                size: 19
-                color: "#ffffff"
+                size: Theme.iconSizeSmall + Theme.spacingXXS + 1
+                color: Theme.surfaceText
                 visible: root.activeWindow && root.activeWindow.appId && activeWindowIcon.status !== Image.Ready && Paths.isSteamApp(root.activeWindow.appId)
             }
 
@@ -69,8 +69,8 @@ Item {
                     const appName = Paths.getAppName(root.activeWindow.appId, root.activeDesktopEntry);
                     return appName ? appName.charAt(0).toUpperCase() : "?";
                 }
-                color: "#ffffff"
-                font.pixelSize: 11
+                color: Theme.surfaceText
+                font.pixelSize: Theme.fontSizeSmall - 1
                 font.weight: Font.Bold
                 visible: root.activeWindow && root.activeWindow.appId && activeWindowIcon.status !== Image.Ready && !Paths.isSteamApp(root.activeWindow.appId)
             }
@@ -80,8 +80,8 @@ Item {
             width: Math.max(0, parent.width - activeWindowIconContainer.width - parent.spacing)
             anchors.verticalCenter: parent.verticalCenter
             text: root.activeWindowTitle
-            color: "#ffffff"
-            font.pixelSize: 15
+            color: Theme.surfaceText
+            font.pixelSize: Theme.fontSizeLarge - 1
             font.weight: Font.Medium
             elide: Text.ElideRight
             wrapMode: Text.NoWrap

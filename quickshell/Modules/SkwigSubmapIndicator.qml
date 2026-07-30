@@ -19,10 +19,10 @@ Rectangle {
     }
 
     visible: activeSubmap !== ""
-    width: submapText.implicitWidth + 20
-    height: 28
-    radius: 4
-    color: Qt.rgba(1, 1, 1, 0.14)
+    width: submapText.implicitWidth + Theme.spacingL + Theme.spacingXS
+    height: Theme.iconSize + Theme.spacingXS
+    radius: Theme.cornerRadius / 3
+    color: Theme.surfacePressed
 
     Process {
         command: ["hyprctl", "submap"]
@@ -50,7 +50,7 @@ Rectangle {
         anchors.centerIn: parent
         text: root.activeSubmap
         color: Theme.primary
-        font.pixelSize: 14
+        font.pixelSize: Theme.fontSizeMedium
         font.weight: Font.Medium
     }
 }

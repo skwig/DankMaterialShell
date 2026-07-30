@@ -110,7 +110,7 @@ DankPopoutStandalone {
                 id: systemTrayFlickable
 
                 anchors.fill: parent
-                anchors.margins: 8
+                anchors.margins: Theme.spacingS
                 visible: root.trayItems.length > 0
                 clip: true
                 contentWidth: Math.max(width, trayItemsRow.implicitWidth)
@@ -123,8 +123,8 @@ DankPopoutStandalone {
 
                     x: Math.max(0, (systemTrayFlickable.width - implicitWidth) / 2)
                     y: Math.round((systemTrayFlickable.height - height) / 2)
-                    height: 36
-                    spacing: 2
+                    height: Theme.iconSizeLarge + Theme.spacingXS
+                    spacing: Theme.spacingXXS
 
                     Repeater {
                         model: root.trayItems
@@ -134,17 +134,17 @@ DankPopoutStandalone {
 
                             required property var modelData
 
-                            width: 36
-                            height: 36
-                            radius: 6
-                            color: trayItemMouseArea.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : "transparent"
+                            width: Theme.iconSizeLarge + Theme.spacingXS
+                            height: Theme.iconSizeLarge + Theme.spacingXS
+                            radius: Theme.cornerRadius / 2
+                            color: trayItemMouseArea.containsMouse ? Theme.surfaceHover : "transparent"
 
                             IconImage {
                                 id: trayItemIcon
 
                                 anchors.centerIn: parent
-                                width: 18
-                                height: 18
+                                width: Theme.iconSizeSmall + Theme.spacingXXS
+                                height: Theme.iconSizeSmall + Theme.spacingXXS
                                 source: root.trayIconSourceFor(trayItemButton.modelData)
                                 visible: status === Image.Ready
                                 asynchronous: true
@@ -156,8 +156,8 @@ DankPopoutStandalone {
                                 anchors.centerIn: parent
                                 visible: !trayItemIcon.visible
                                 text: root.trayItemFallbackText(trayItemButton.modelData)
-                                color: "#ffffff"
-                                font.pixelSize: 10
+                                color: Theme.surfaceText
+                                font.pixelSize: Theme.fontSizeSmall - Theme.spacingXXS
                                 font.weight: Font.Bold
                             }
 

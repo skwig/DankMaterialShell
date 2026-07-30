@@ -1,4 +1,5 @@
 import QtQuick
+import qs.Common
 import qs.Services
 import qs.Widgets
 
@@ -8,14 +9,14 @@ Rectangle {
     required property var audioPopout
     signal clicked(var button)
 
-    width: 40
-    radius: 4
+    width: Theme.barHeight - Theme.spacingS
+    radius: Theme.cornerRadius / 3
     color: {
         if (audioPopout?.shouldBeVisible)
-            return Qt.rgba(1, 1, 1, 0.16);
+            return Theme.surfacePressed;
 
         if (mouseArea.containsMouse)
-            return Qt.rgba(1, 1, 1, 0.10);
+            return Theme.surfaceHover;
 
         return "transparent";
     }
@@ -33,8 +34,8 @@ Rectangle {
 
             return "volume_up";
         }
-        size: 22
-        color: "#ffffff"
+        size: Theme.iconSize - Theme.spacingXXS
+        color: Theme.surfaceText
     }
 
     MouseArea {

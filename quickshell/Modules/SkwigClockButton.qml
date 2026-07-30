@@ -27,14 +27,14 @@ Rectangle {
         return String(displayHours) + ":" + minutes + suffix;
     }
 
-    width: Math.max(68, timeText.implicitWidth + 20)
-    radius: 4
+    width: Math.max(68, timeText.implicitWidth + Theme.spacingL + Theme.spacingXS)
+    radius: Theme.cornerRadius / 3
     color: {
         if (calendarPopout?.shouldBeVisible)
-            return Qt.rgba(1, 1, 1, 0.16);
+            return Theme.surfacePressed;
 
         if (mouseArea.containsMouse)
-            return Qt.rgba(1, 1, 1, 0.10);
+            return Theme.surfaceHover;
 
         return "transparent";
     }
@@ -59,8 +59,8 @@ Rectangle {
 
         anchors.centerIn: parent
         text: root.formatBarTime(barClock.date)
-        color: "#ffffff"
-        font.pixelSize: 16
+        color: Theme.surfaceText
+        font.pixelSize: Theme.fontSizeLarge
         font.weight: Font.Medium
     }
 

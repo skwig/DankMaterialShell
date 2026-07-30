@@ -11,14 +11,14 @@ Rectangle {
     signal clicked(var button)
 
     visible: BatteryService.batteryAvailable
-    width: Math.max(40, content.implicitWidth + 16)
-    radius: 4
+    width: Math.max(Theme.barHeight - Theme.spacingS, content.implicitWidth + Theme.spacingL)
+    radius: Theme.cornerRadius / 3
     color: {
         if (batteryPopout?.shouldBeVisible)
-            return Qt.rgba(1, 1, 1, 0.16);
+            return Theme.surfacePressed;
 
         if (mouseArea.containsMouse)
-            return Qt.rgba(1, 1, 1, 0.10);
+            return Theme.surfaceHover;
 
         return "transparent";
     }
@@ -27,20 +27,20 @@ Rectangle {
         id: content
 
         anchors.centerIn: parent
-        spacing: 4
+        spacing: Theme.spacingXS
 
         DankIcon {
             anchors.verticalCenter: parent.verticalCenter
             name: BatteryService.getBatteryIcon()
-            size: 22
-            color: BatteryService.isLowBattery && !BatteryService.isCharging ? Theme.error : "#ffffff"
+            size: Theme.iconSize - Theme.spacingXXS
+            color: BatteryService.isLowBattery && !BatteryService.isCharging ? Theme.error : Theme.surfaceText
         }
 
         StyledText {
             anchors.verticalCenter: parent.verticalCenter
             text: Math.round(BatteryService.batteryLevel) + "%"
-            color: BatteryService.isLowBattery && !BatteryService.isCharging ? Theme.error : "#ffffff"
-            font.pixelSize: 14
+            color: BatteryService.isLowBattery && !BatteryService.isCharging ? Theme.error : Theme.surfaceText
+            font.pixelSize: Theme.fontSizeMedium
             font.weight: Font.Medium
         }
     }

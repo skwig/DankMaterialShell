@@ -64,7 +64,7 @@ PanelWindow {
 
         const buttonPosition = button.mapToItem(barBackground, 0, 0);
         const triggerX = buttonPosition.x;
-        const triggerY = implicitHeight + 4;
+        const triggerY = implicitHeight + Theme.spacingXS;
 
         popup.setTriggerPosition(triggerX, triggerY, button.width, "right", screen, SettingsData.Position.Top, implicitHeight, 0, null);
 
@@ -84,7 +84,7 @@ PanelWindow {
 
         const buttonPosition = button.mapToItem(barBackground, 0, 0);
         const triggerX = buttonPosition.x;
-        const triggerY = implicitHeight + 4;
+        const triggerY = implicitHeight + Theme.spacingXS;
 
         notificationCenterPopout.triggerScreen = screen;
         notificationCenterPopout.setTriggerPosition(triggerX, triggerY, button.width, "right", screen, SettingsData.Position.Top, implicitHeight, 0, null);
@@ -95,7 +95,7 @@ PanelWindow {
         id: barBackground
 
         anchors.fill: parent
-        color: Qt.rgba(0, 0, 0, 0.4)
+        color: Theme.withAlpha(Theme.background, 0.4)
 
         Row {
             id: leftSection
@@ -106,7 +106,7 @@ PanelWindow {
                 bottom: parent.bottom
                 right: centerSection.left
 
-                leftMargin: 12
+                leftMargin: Theme.spacingM
             }
 
             SkwigWindowTitle {
@@ -148,7 +148,7 @@ PanelWindow {
                 bottom: parent.bottom
                 right: parent.right
 
-                rightMargin: 12
+                rightMargin: Theme.spacingM
             }
 
             spacing: 0

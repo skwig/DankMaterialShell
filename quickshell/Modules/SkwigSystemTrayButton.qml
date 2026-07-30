@@ -1,4 +1,5 @@
 import QtQuick
+import qs.Common
 import qs.Modules.DankBar.Widgets
 import qs.Widgets
 
@@ -12,14 +13,14 @@ Rectangle {
 
     signal clicked(var button)
 
-    width: 40
-    radius: 4
+    width: Theme.barHeight - Theme.spacingS
+    radius: Theme.cornerRadius / 3
     color: {
         if (systemTrayPopout?.shouldBeVisible)
-            return Qt.rgba(1, 1, 1, 0.16);
+            return Theme.surfacePressed;
 
         if (mouseArea.containsMouse)
-            return Qt.rgba(1, 1, 1, 0.10);
+            return Theme.surfaceHover;
 
         return "transparent";
     }
@@ -27,8 +28,8 @@ Rectangle {
     DankIcon {
         anchors.centerIn: parent
         name: "apps"
-        size: 22
-        color: "#ffffff"
+        size: Theme.iconSize - Theme.spacingXXS
+        color: Theme.surfaceText
     }
 
     QtObject {
@@ -47,7 +48,7 @@ Rectangle {
         parentScreen: root.currentScreen
         widgetThickness: root.barThickness
         barThickness: root.barThickness
-        barSpacing: 4
+        barSpacing: Theme.spacingXS
         axis: trayMenuAxis
         barConfig: null
         isAtBottom: false

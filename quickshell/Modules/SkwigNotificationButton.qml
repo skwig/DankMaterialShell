@@ -12,36 +12,36 @@ Rectangle {
 
     signal clicked(var button)
 
-    width: 40
-    radius: 4
+    width: Theme.barHeight - Theme.spacingS
+    radius: Theme.cornerRadius / 3
     color: {
         if (centerVisible)
-            return Qt.rgba(1, 1, 1, 0.16);
+            return Theme.surfacePressed;
 
         if (mouseArea.containsMouse)
-            return Qt.rgba(1, 1, 1, 0.10);
+            return Theme.surfaceHover;
 
         return "transparent";
     }
 
     Item {
         anchors.centerIn: parent
-        width: 24
-        height: 24
+        width: Theme.iconSize
+        height: Theme.iconSize
 
         DankIcon {
             id: notificationIcon
 
             anchors.centerIn: parent
             name: SessionData.doNotDisturb ? "notifications_off" : "notifications"
-            size: 22
-            color: SessionData.doNotDisturb ? Theme.primary : "#ffffff"
+            size: Theme.iconSize - Theme.spacingXXS
+            color: SessionData.doNotDisturb ? Theme.primary : Theme.surfaceText
         }
 
         Rectangle {
-            width: 6
-            height: 6
-            radius: 3
+            width: Theme.spacingS - Theme.spacingXXS
+            height: Theme.spacingS - Theme.spacingXXS
+            radius: width / 2
             anchors {
                 top: notificationIcon.top
                 right: notificationIcon.right
