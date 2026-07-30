@@ -101,39 +101,39 @@ Singleton {
      * Base colors used by the Theme compatibility singleton.
      */
 
-    readonly property color primary: readColor("primary", "#d0bcff")
+    readonly property color primary: readColor("primary", "#000000")
 
-    readonly property color primaryText: readColor("on_primary", "#381e72")
+    readonly property color primaryText: readColor("on_primary", "#000000")
 
-    readonly property color primaryContainer: readColor("primary_container", "#4f378b")
+    readonly property color primaryContainer: readColor("primary_container", "#000000")
 
-    readonly property color secondary: readColor("secondary", "#ccc2dc")
+    readonly property color secondary: readColor("secondary", "#000000")
 
-    readonly property color surface: readColor("surface", "#141218")
+    readonly property color surface: readColor("surface", "#000000")
 
-    readonly property color surfaceText: readColor("on_surface", "#e6e0e9")
+    readonly property color surfaceText: readColor("on_surface", "#000000")
 
-    readonly property color surfaceVariant: readColor("surface_variant", "#49454f")
+    readonly property color surfaceVariant: readColor("surface_variant", "#000000")
 
-    readonly property color surfaceVariantText: readColor("on_surface_variant", "#cac4d0")
+    readonly property color surfaceVariantText: readColor("on_surface_variant", "#000000")
 
-    readonly property color background: readColor("background", surface)
+    readonly property color background: readColor("background", "#000000")
 
-    readonly property color outline: readColor("outline", "#938f99")
+    readonly property color outline: readColor("outline", "#000000")
 
-    readonly property color surfaceContainer: readColor("surface_container", "#211f26")
+    readonly property color surfaceContainer: readColor("surface_container", "#000000")
 
-    readonly property color surfaceContainerHigh: readColor("surface_container_high", "#2b2930")
+    readonly property color surfaceContainerHigh: readColor("surface_container_high", "#000000")
 
-    readonly property color surfaceTint: readColor("surface_tint", primary)
+    readonly property color surfaceTint: readColor("surface_tint", "#000000")
 
-    readonly property color error: readColor("error", "#f2b8b5")
+    readonly property color error: readColor("error", "#000000")
 
     /*
      * Material does not define a standard warning role.
      * Use the generated tertiary accent.
      */
-    readonly property color warning: readColor("tertiary", "#ff9800")
+    readonly property color warning: readColor("tertiary", "#000000")
 
     readonly property color shadow: readColor("shadow", "#000000")
 
