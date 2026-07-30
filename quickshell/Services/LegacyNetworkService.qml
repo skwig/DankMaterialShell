@@ -22,7 +22,7 @@ Singleton {
     readonly property var wifiDevices: allDevices.filter(d => d.type === DeviceType.Wifi).map(d => ({
                 "name": d.name
             }))
-    readonly property var ethernetDevices: allDevices.filter(d => d.type === DeviceType.Wired).map(d => ({
+    readonly property var ethernetDevices: wiredDevices.map(d => ({
                 "name": d.name
             }))
 
@@ -39,7 +39,9 @@ Singleton {
         return list[0] ?? null;
     }
 
-    readonly property var wiredDevice: allDevices.find(d => d.type === DeviceType.Wired) ?? null
+    readonly property var wiredDevices: allDevices.filter(d => d.type === DeviceType.Wired)
+    readonly property var connectedWiredDevices: wiredDevices.filter(d => d.connected)
+    readonly property var wiredDevice: connectedWiredDevices[0] ?? wiredDevices[0] ?? null
 
     readonly property bool ethernetConnected: wiredDevice?.connected ?? false
     readonly property string ethernetInterface: wiredDevice?.name ?? ""
