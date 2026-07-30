@@ -144,15 +144,19 @@ Rectangle {
                 }
             }
 
-            DankActionButton {
+            DankToggle {
+                id: wifiPowerToggle
+
                 anchors.verticalCenter: parent.verticalCenter
-                iconName: "settings"
-                buttonSize: 28
-                iconSize: 16
-                iconColor: Theme.surfaceVariantText
-                onClicked: {
-                    PopoutService.closeControlCenter();
-                    PopoutService.openSettingsWithTab(currentPreferenceIndex === 0 ? "network_ethernet" : "network_wifi");
+
+                hideText: true
+                visible: NetworkService.wifiAvailable
+                checked: NetworkService.wifiEnabled
+                toggling: NetworkService.wifiToggling
+                enabled: NetworkService.wifiAvailable && !NetworkService.wifiToggling
+
+                onToggled: {
+                    NetworkService.toggleWifiRadio();
                 }
             }
         }
@@ -653,20 +657,25 @@ Rectangle {
                 iconName: "more_horiz"
                 buttonSize: 28
                 onClicked: {
+
                     if (networkContextMenu.visible) {
                         networkContextMenu.close();
                         return;
                     }
+
                     wifiContent.menuOpen = true;
-                    networkContextMenu.currentSSID = modelData.ssid;
-                    networkContextMenu.currentSecured = modelData.secured;
-                    networkContextMenu.currentEnterprise = modelData.enterprise;
-                    networkContextMenu.currentConnected = wifiDelegate.isConnected;
-                    networkContextMenu.currentConnecting = wifiDelegate.isConnecting;
-                    networkContextMenu.currentSaved = modelData.saved;
-                    networkContextMenu.currentSignal = modelData.signal;
-                    networkContextMenu.currentAutoconnect = modelData.autoconnect || false;
-                    networkContextMenu.popup(optionsButton, -networkContextMenu.width + optionsButton.width, optionsButton.height + Theme.spacingXS);
+                    networkContextMenu.currentSSID = modelData.ssid || "";
+                    networkContextMenu.currentSecured = !!modelData.secured;
+                    networkContextMenu.currentEnterprise = !!modelData.enterprise;
+                    networkContextMenu.currentConnected = !!wifiDelegate.isConnected;
+                    networkContextMenu.currentConnecting = !!wifiDelegate.isConnecting;
+                    networkContextMenu.currentSaved = !!modelData.saved;
+                    networkContextMenu.currentSignal = modelData.signal || 0;
+                    networkContextMenu.currentAutoconnect = !!modelData.autoconnect;
+
+                    const popupX = -networkContextMenu.width + optionsButton.width;
+                    const popupY = optionsButton.height + Theme.spacingXS;
+                    networkContextMenu.popup(optionsButton, popupX, popupY);
                 }
             }
 
@@ -734,7 +743,7 @@ Rectangle {
 
             DankActionButton {
                 id: qrCodeButton
-                visible: modelData.secured && modelData.saved && !(modelData.enterprise || false)
+                visible: false
                 anchors.right: parent.right
                 anchors.rightMargin: optionsButton.width + pinWifiRow.width + 3 * Theme.spacingM + Theme.spacingS
                 anchors.verticalCenter: parent.verticalCenter
@@ -787,6 +796,12 @@ Rectangle {
         property bool currentAutoconnect: false
 
         readonly property bool showSavedOptions: currentSaved || currentConnected
+
+        onVisibleChanged: {
+        }
+
+        onOpened: {
+        }
 
         onClosed: {
             wifiContent.menuOpen = false;
