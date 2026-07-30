@@ -144,15 +144,19 @@ Rectangle {
                 }
             }
 
-            DankActionButton {
+            DankToggle {
+                id: wifiPowerToggle
+
                 anchors.verticalCenter: parent.verticalCenter
-                iconName: "settings"
-                buttonSize: 28
-                iconSize: 16
-                iconColor: Theme.surfaceVariantText
-                onClicked: {
-                    PopoutService.closeControlCenter();
-                    PopoutService.openSettingsWithTab(currentPreferenceIndex === 0 ? "network_ethernet" : "network_wifi");
+
+                hideText: true
+                visible: NetworkService.wifiAvailable
+                checked: NetworkService.wifiEnabled
+                toggling: NetworkService.wifiToggling
+                enabled: NetworkService.wifiAvailable && !NetworkService.wifiToggling
+
+                onToggled: {
+                    NetworkService.toggleWifiRadio();
                 }
             }
         }
