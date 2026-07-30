@@ -126,15 +126,6 @@ Item {
                     }
                 }
 
-                DankActionButton {
-                    id: settingsButton
-                    iconName: "settings"
-                    iconColor: root.showSettings ? Theme.primary : Theme.surfaceText
-                    buttonSize: Theme.iconSize + Theme.spacingS
-                    anchors.verticalCenter: parent.verticalCenter
-                    onClicked: root.showSettings = !root.showSettings
-                }
-
                 Rectangle {
                     id: clearAllButton
                     width: clearButtonContent.implicitWidth + Theme.spacingM * 2
