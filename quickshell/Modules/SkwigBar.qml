@@ -28,7 +28,7 @@ PanelWindow {
     color: "transparent"
 
     WlrLayershell.layer: WlrLayer.Top
-    WlrLayershell.namespace: "skwig:bar"
+    WlrLayershell.namespace: "skwig-bar"
 
     function closeOtherPopouts(activePopup) {
         if (batteryPopout !== activePopup)
@@ -95,7 +95,7 @@ PanelWindow {
         id: barBackground
 
         anchors.fill: parent
-        color: Theme.withAlpha(Theme.background, 0.4)
+        color: Qt.rgba(0, 0, 0, 0.4)
 
         Row {
             id: leftSection
