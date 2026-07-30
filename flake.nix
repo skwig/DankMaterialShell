@@ -72,6 +72,19 @@
           kimageformats
         ];
 
+      mkQuickshellRunner =
+        pkgs:
+        let
+          qtPackages = qmlPkgs pkgs;
+        in
+        pkgs.writeShellScriptBin "skwig-dms" ''
+          export DMS_DISABLE_HOT_RELOAD=1
+          export DMS_DISABLE_MATUGEN=1
+          export NIXPKGS_QT6_QML_IMPORT_PATH="${mkQmlImportPath pkgs qtPackages}''${NIXPKGS_QT6_QML_IMPORT_PATH:+:$NIXPKGS_QT6_QML_IMPORT_PATH}"
+          export QT_PLUGIN_PATH="${mkQtPluginPath pkgs qtPackages}''${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
+          exec ${pkgs.quickshell}/bin/qs -p ${./quickshell} "$@"
+        '';
+
       # Allows downstream modules to provide their own 'pkgs' (with overlays)
       # instead of being forced to use the flake's locked nixpkgs.
       mkDmsShell =
@@ -192,8 +205,19 @@
       packages = forEachSystem (
         system: pkgs: {
           dms-shell = mkDmsShell pkgs;
-          default = self.packages.${system}.dms-shell;
+          skwig-dms = mkQuickshellRunner pkgs;
+          default = self.packages.${system}.skwig-dms;
           quickshell = builtins.warn "dank-material-shell: the package Quickshell is not included in the DMS flake anymore. We recommend you to use the one from nixos-unstable branch of Nixpkgs or the upstream flake." pkgs.quickshell;
+        }
+      );
+
+      apps = forEachSystem (
+        system: pkgs: {
+          default = {
+            type = "app";
+            program = "${self.packages.${system}.skwig-dms}/bin/skwig-dms";
+          };
+          skwig-dms = self.apps.${system}.default;
         }
       );
 
