@@ -15,8 +15,8 @@ Rectangle {
     implicitHeight: {
         if (height > 0)
             return height;
-        if (!BluetoothService.adapter?.enabled)
-            return headerRow.height;
+        if (!(BluetoothService.adapter?.enabled ?? false))
+            return headerRow.height + bluetoothOffContent.height + Theme.spacingM;
         return headerRow.height + bluetoothContent.height + Theme.spacingM;
     }
     radius: Theme.cornerRadius
@@ -136,7 +136,7 @@ Rectangle {
         }
 
         Item {
-            width: Math.max(0, parent.width - headerText.implicitWidth - scanButton.width - Theme.spacingM)
+            width: Math.max(0, parent.width - headerText.implicitWidth - (scanButton.visible ? scanButton.width : 0) - bluetoothPowerToggle.width - (scanButton.visible ? Theme.spacingS : 0) - Theme.spacingM)
             height: parent.height
         }
 
@@ -193,6 +193,110 @@ Rectangle {
                 }
             }
         }
+
+        Item {
+            width: scanButton.visible ? Theme.spacingS : 0
+            height: parent.height
+        }
+
+        DankToggle {
+            id: bluetoothPowerToggle
+
+            anchors.verticalCenter: parent.verticalCenter
+
+            hideText: true
+            checked: BluetoothService.adapter?.enabled ?? false
+            enabled: BluetoothService.available
+
+            onToggled: nextChecked => {
+                if (!BluetoothService.adapter)
+                    return;
+
+                BluetoothService.adapter.enabled = nextChecked;
+            }
+        }
+    }
+
+    Item {
+        id: bluetoothOffContent
+
+        anchors.top: headerRow.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.margins: Theme.spacingM
+        anchors.topMargin: Theme.spacingM
+
+        visible: !(BluetoothService.adapter?.enabled ?? false)
+        height: visible ? bluetoothOffColumn.implicitHeight + Theme.spacingM * 2 : 0
+
+        Column {
+            id: bluetoothOffColumn
+
+            anchors.centerIn: parent
+
+            width: parent.width
+            spacing: Theme.spacingL
+
+            DankIcon {
+                anchors.horizontalCenter: parent.horizontalCenter
+
+                name: "bluetooth_disabled"
+                size: 48
+                color: Theme.surfaceTextSecondary
+            }
+
+            StyledText {
+                anchors.horizontalCenter: parent.horizontalCenter
+
+                text: I18n.tr("Bluetooth is off")
+                font.pixelSize: Theme.fontSizeLarge
+                font.weight: Font.Medium
+                color: Theme.surfaceText
+                horizontalAlignment: Text.AlignHCenter
+            }
+
+            Rectangle {
+                anchors.horizontalCenter: parent.horizontalCenter
+
+                width: enableBluetoothLabel.implicitWidth + Theme.spacingL * 2
+
+                height: enableBluetoothLabel.implicitHeight + Theme.spacingM * 2
+
+                radius: height / 2
+
+                color: enableBluetoothButton.containsMouse ? Theme.primaryHover : Theme.primaryHoverLight
+
+                border.width: 0
+                border.color: Theme.primary
+
+                StyledText {
+                    id: enableBluetoothLabel
+
+                    anchors.centerIn: parent
+
+                    text: I18n.tr("Enable Bluetooth")
+                    color: Theme.primary
+                    font.pixelSize: Theme.fontSizeMedium
+                    font.weight: Font.Medium
+                }
+
+                MouseArea {
+                    id: enableBluetoothButton
+
+                    anchors.fill: parent
+                    hoverEnabled: true
+
+                    cursorShape: Qt.PointingHandCursor
+
+                    onClicked: {
+                        if (!BluetoothService.adapter)
+                            return;
+
+                        BluetoothService.adapter.enabled = true;
+                    }
+                }
+            }
+        }
     }
 
     DankFlickable {
@@ -222,7 +326,19 @@ Rectangle {
                         return [];
 
                     const pinnedList = root.getPinnedDevices();
-                    const devices = [...BluetoothService.adapter.devices.values.filter(dev => dev && (dev.paired || dev.trusted))];
+                    const deviceMap = new Map();
+
+                    // AirPods can appear in Quickshell's global Bluetooth device cache as bonded but not in the adapter-local list while offline.
+                    Bluetooth.devices.values.forEach(dev => {
+                        if (dev)
+                            deviceMap.set(dev.dbusPath || dev.address || dev.name || dev.deviceName, dev);
+                    });
+                    BluetoothService.adapter.devices.values.forEach(dev => {
+                        if (dev)
+                            deviceMap.set(dev.dbusPath || dev.address || dev.name || dev.deviceName, dev);
+                    });
+
+                    const devices = [...deviceMap.values()].filter(dev => dev && (dev.paired || dev.trusted || dev.bonded));
 
                     devices.sort((a, b) => {
                         const aPinnedIndex = pinnedList.indexOf(a.address);
