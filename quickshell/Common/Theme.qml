@@ -8,7 +8,6 @@ import Quickshell.Io
 import qs.Common
 import qs.Services
 import qs.Modules.Greetd
-import "StockThemes.js" as StockThemes
 
 Singleton {
     id: root
@@ -31,9 +30,9 @@ Singleton {
         return useAuto ? Math.max(4, spacing) : manualValue;
     }
 
-    property string currentTheme: "purple"
-    property string currentThemeCategory: "generic"
-    property bool isLightMode: typeof SessionData !== "undefined" ? SessionData.isLightMode : false
+    property string currentTheme: "dynamic"
+    property string currentThemeCategory: "dynamic"
+    property bool isLightMode: SkwigMatugenTheme.isLightMode
     property bool colorsFileLoadFailed: false
 
     readonly property string dynamic: "dynamic"
@@ -110,35 +109,11 @@ Singleton {
     property bool themeModeAutomationActive: false
     property bool dmsServiceWasDisconnected: true
 
-    readonly property var dank16: {
-        const raw = matugenColors?.dank16;
-        if (!raw)
-            return null;
-
-        const dark = {};
-        const light = {};
-        const def = {};
-
-        for (let i = 0; i < 16; i++) {
-            const key = "color" + i;
-            const c = raw[key];
-            if (!c)
-                continue;
-            dark[key] = c.dark;
-            light[key] = c.light;
-            def[key] = c.default;
-        }
-
-        return {
-            dark,
-            light,
-            "default": def
-        };
-    }
+    readonly property var dank16: null
     property var customThemeData: null
     property var customThemeRawData: null
-    readonly property var currentThemeVariants: customThemeRawData?.variants || null
-    readonly property string currentThemeId: customThemeRawData?.id || ""
+    readonly property var currentThemeVariants: null
+    readonly property string currentThemeId: ""
 
     Component.onCompleted: {
         Quickshell.execDetached(["mkdir", "-p", stateDir]);
@@ -146,55 +121,10 @@ Singleton {
             Quickshell.execDetached([shellDir + "/scripts/gtk.sh", configDir, "", shellDir, "assets-only"]);
         Proc.runCommand("matugenCheck", ["sh", "-c", "command -v matugen"], (output, code) => {
             matugenAvailable = (code === 0) && !envDisableMatugen;
-            const isGreeterMode = (typeof SessionData !== "undefined" && SessionData.isGreeterMode);
-
-            if (!matugenAvailable || isGreeterMode) {
-                return;
-            }
-
-            if (colorsFileLoadFailed && currentTheme === dynamic && rawWallpaperPath) {
-                log.info("Matugen now available, regenerating colors for dynamic theme");
-                const isLight = (typeof SessionData !== "undefined" && SessionData.isLightMode);
-                const iconTheme = (typeof SettingsData !== "undefined" && SettingsData.iconTheme) ? SettingsData.iconTheme : "System Default";
-                const selectedMatugenType = (typeof SettingsData !== "undefined" && SettingsData.matugenScheme) ? SettingsData.matugenScheme : "scheme-tonal-spot";
-                if (rawWallpaperPath.startsWith("#")) {
-                    setDesiredTheme("hex", rawWallpaperPath, isLight, iconTheme, selectedMatugenType);
-                } else {
-                    setDesiredTheme("image", rawWallpaperPath, isLight, iconTheme, selectedMatugenType);
-                }
-                return;
-            }
-
-            const isLight = (typeof SessionData !== "undefined" && SessionData.isLightMode);
-            const iconTheme = (typeof SettingsData !== "undefined" && SettingsData.iconTheme) ? SettingsData.iconTheme : "System Default";
-
-            if (currentTheme === dynamic) {
-                if (rawWallpaperPath) {
-                    const selectedMatugenType = (typeof SettingsData !== "undefined" && SettingsData.matugenScheme) ? SettingsData.matugenScheme : "scheme-tonal-spot";
-                    if (rawWallpaperPath.startsWith("#")) {
-                        setDesiredTheme("hex", rawWallpaperPath, isLight, iconTheme, selectedMatugenType);
-                    } else {
-                        setDesiredTheme("image", rawWallpaperPath, isLight, iconTheme, selectedMatugenType);
-                    }
-                }
-            } else if (currentTheme !== "custom") {
-                const darkTheme = StockThemes.getThemeByName(currentTheme, false);
-                const lightTheme = StockThemes.getThemeByName(currentTheme, true);
-                if (darkTheme && darkTheme.primary) {
-                    const stockColors = buildMatugenColorsFromTheme(darkTheme, lightTheme);
-                    const themeData = isLight ? lightTheme : darkTheme;
-                    setDesiredTheme("hex", themeData.primary, isLight, iconTheme, themeData.matugen_type, stockColors);
-                }
-            }
         }, 0);
-        if (typeof SessionData !== "undefined") {
-            SessionData.isLightModeChanged.connect(root.onLightModeChanged);
-        }
 
         if (typeof SettingsData !== "undefined" && SettingsData.currentThemeName) {
             switchTheme(SettingsData.currentThemeName, false, false);
-            const currentIsLight = (typeof SessionData !== "undefined") ? SessionData.isLightMode : false;
-            SettingsData.updateCosmicThemeMode(currentIsLight);
         }
 
         if (typeof SessionData !== "undefined" && SessionData.themeModeAutoEnabled) {
@@ -429,56 +359,40 @@ Singleton {
 
     function applyGreeterTheme(themeName) {
         switchTheme(themeName, false, false);
-        if (themeName === dynamic && dynamicColorsFileView.path) {
-            dynamicColorsFileView.reload();
-        }
     }
 
     function getMatugenColor(path, fallback) {
-        const colorMode = (typeof SessionData !== "undefined" && SessionData.isLightMode) ? "light" : "dark";
-        let cur = matugenColors && matugenColors.colors && matugenColors.colors[colorMode];
-        for (const part of path.split(".")) {
-            if (!cur || typeof cur !== "object" || !(part in cur))
-                return fallback;
-            cur = cur[part];
-        }
-        return cur || fallback;
+        return SkwigMatugenTheme.readColor(path, fallback);
     }
 
-    readonly property var currentThemeData: {
-        if (currentTheme === "custom") {
-            return customThemeData || StockThemes.getThemeByName("purple", isLightMode);
-        } else if (currentTheme === dynamic) {
-            return {
-                "primary": getMatugenColor("primary", "#42a5f5"),
-                "primaryText": getMatugenColor("on_primary", "#ffffff"),
-                "primaryContainer": getMatugenColor("primary_container", "#1976d2"),
-                "secondary": getMatugenColor("secondary", "#8ab4f8"),
-                "secondaryContainer": getMatugenColor("secondary_container", getMatugenColor("surface_container_high", "#292b2f")),
-                "tertiary": getMatugenColor("tertiary", "#efb8c8"),
-                "tertiaryContainer": getMatugenColor("tertiary_container", getMatugenColor("surface_container_high", "#292b2f")),
-                "surface": getMatugenColor("surface", "#1a1c1e"),
-                "surfaceText": getMatugenColor("on_background", "#e3e8ef"),
-                "surfaceVariant": getMatugenColor("surface_variant", "#44464f"),
-                "surfaceVariantText": getMatugenColor("on_surface_variant", "#c4c7c5"),
-                "surfaceTint": getMatugenColor("surface_tint", "#8ab4f8"),
-                "background": getMatugenColor("background", "#1a1c1e"),
-                "backgroundText": getMatugenColor("on_background", "#e3e8ef"),
-                "outline": getMatugenColor("outline", "#8e918f"),
-                "surfaceContainerLowest": getMatugenColor("surface_container_lowest", "#0e1013"),
-                "surfaceContainerLow": getMatugenColor("surface_container_low", "#181a1d"),
-                "surfaceContainer": getMatugenColor("surface_container", "#1e2023"),
-                "surfaceContainerHigh": getMatugenColor("surface_container_high", "#292b2f"),
-                "surfaceContainerHighest": getMatugenColor("surface_container_highest", "#343740"),
-                "error": "#F2B8B5",
-                "warning": "#FF9800",
-                "info": "#2196F3",
-                "success": "#4CAF50"
-            };
-        } else {
-            return StockThemes.getThemeByName(currentTheme, isLightMode);
-        }
-    }
+    readonly property var currentThemeData: ({
+            "primary": primary,
+            "primaryText": primaryText,
+            "primaryContainer": primaryContainer,
+            "secondary": secondary,
+            "secondaryContainer": secondaryContainer,
+            "tertiary": tertiary,
+            "tertiaryContainer": tertiaryContainer,
+            "surface": surface,
+            "surfaceText": surfaceText,
+            "surfaceVariant": surfaceVariant,
+            "surfaceVariantText": surfaceVariantText,
+            "surfaceTint": surfaceTint,
+            "background": background,
+            "backgroundText": backgroundText,
+            "outline": outline,
+            "outlineVariant": outlineVariant,
+            "surfaceContainerLowest": surfaceContainerLowest,
+            "surfaceContainerLow": surfaceContainerLow,
+            "surfaceContainer": surfaceContainer,
+            "surfaceContainerHigh": surfaceContainerHigh,
+            "surfaceContainerHighest": surfaceContainerHighest,
+            "error": error,
+            "warning": warning,
+            "info": info,
+            "success": success,
+            "name": "Skwig Matugen"
+        })
 
     readonly property var availableMatugenSchemes: [({
                 "value": "scheme-tonal-spot",
@@ -527,27 +441,27 @@ Singleton {
         return schemes[0];
     }
 
-    property color primary: currentThemeData.primary
-    property color primaryText: currentThemeData.primaryText
-    property color secondary: currentThemeData.secondary
-    property color tertiary: currentThemeData.tertiary || currentThemeData.secondary
-    property color surface: currentThemeData.surface
-    property color surfaceText: currentThemeData.surfaceText
-    property color surfaceVariant: currentThemeData.surfaceVariant
-    property color surfaceVariantText: currentThemeData.surfaceVariantText
-    property color surfaceTint: currentThemeData.surfaceTint
-    property color background: currentThemeData.background
-    property color backgroundText: currentThemeData.backgroundText
-    property color outline: currentThemeData.outline
-    property color outlineVariant: currentThemeData.outlineVariant || withAlpha(outline, 0.6)
-    property color surfaceContainerLowest: currentThemeData.surfaceContainerLowest || blend(surfaceContainer, surface, 1.2)
-    property color surfaceContainerLow: currentThemeData.surfaceContainerLow || blend(surface, surfaceContainer, 0.667)
-    property color surfaceContainer: currentThemeData.surfaceContainer
-    property color surfaceContainerHigh: currentThemeData.surfaceContainerHigh
-    property color surfaceContainerHighest: currentThemeData.surfaceContainerHighest || surfaceContainerHigh
-    property color primaryContainer: currentThemeData.primaryContainer || blend(surfaceContainerHigh, primary, 0.45)
-    property color secondaryContainer: currentThemeData.secondaryContainer || blend(surfaceContainerHigh, secondary, 0.35)
-    property color tertiaryContainer: currentThemeData.tertiaryContainer || blend(surfaceContainerHigh, tertiary, 0.35)
+    property color primary: SkwigMatugenTheme.primary
+    property color primaryText: SkwigMatugenTheme.primaryText
+    property color secondary: SkwigMatugenTheme.secondary
+    property color tertiary: SkwigMatugenTheme.warning
+    property color surface: SkwigMatugenTheme.surface
+    property color surfaceText: SkwigMatugenTheme.surfaceText
+    property color surfaceVariant: SkwigMatugenTheme.surfaceVariant
+    property color surfaceVariantText: SkwigMatugenTheme.surfaceVariantText
+    property color surfaceTint: SkwigMatugenTheme.surfaceTint
+    property color background: SkwigMatugenTheme.background
+    property color backgroundText: SkwigMatugenTheme.surfaceText
+    property color outline: SkwigMatugenTheme.outline
+    property color outlineVariant: withAlpha(outline, 0.6)
+    property color surfaceContainerLowest: blend(surface, surfaceContainer, 0.35)
+    property color surfaceContainerLow: blend(surface, surfaceContainer, 0.667)
+    property color surfaceContainer: SkwigMatugenTheme.surfaceContainer
+    property color surfaceContainerHigh: SkwigMatugenTheme.surfaceContainerHigh
+    property color surfaceContainerHighest: blend(surfaceContainerHigh, surfaceText, 0.08)
+    property color primaryContainer: SkwigMatugenTheme.primaryContainer
+    property color secondaryContainer: blend(surfaceContainerHigh, secondary, 0.35)
+    property color tertiaryContainer: blend(surfaceContainerHigh, tertiary, 0.35)
 
     property color onSurface: surfaceText
     property color onSurfaceVariant: surfaceVariantText
@@ -556,12 +470,12 @@ Singleton {
     property color onSurface_38: withAlpha(onSurface, 0.38)
     property color onSurfaceVariant_30: withAlpha(onSurfaceVariant, 0.30)
 
-    property color error: currentThemeData.error || "#F2B8B5"
-    property color warning: currentThemeData.warning || "#FF9800"
-    property color info: currentThemeData.info || "#2196F3"
-    property color tempWarning: "#ff9933"
-    property color tempDanger: "#ff5555"
-    property color success: currentThemeData.success || "#4CAF50"
+    property color error: SkwigMatugenTheme.error
+    property color warning: SkwigMatugenTheme.warning
+    property color info: secondary
+    property color tempWarning: warning
+    property color tempDanger: error
+    property color success: primary
 
     property color primaryHover: withAlpha(primary, 0.12)
     property color primaryHoverLight: withAlpha(primary, transparentBlurLayers ? 0.12 : 0.08)
@@ -762,8 +676,8 @@ Singleton {
         }
     }
 
-    property color shadowMedium: Qt.rgba(0, 0, 0, 0.08)
-    property color shadowStrong: Qt.rgba(0, 0, 0, 0.3)
+    property color shadowMedium: withAlpha(SkwigMatugenTheme.shadow, 0.08)
+    property color shadowStrong: withAlpha(SkwigMatugenTheme.shadow, 0.3)
 
     readonly property bool elevationEnabled: typeof SettingsData !== "undefined" && (SettingsData.m3ElevationEnabled ?? true)
     readonly property real elevationBlurMax: typeof SettingsData !== "undefined" && SettingsData.m3ElevationIntensity !== undefined ? Math.min(128, Math.max(32, SettingsData.m3ElevationIntensity * 2)) : 64
@@ -951,9 +865,9 @@ Singleton {
         if (typeof SettingsData !== "undefined") {
             const mode = SettingsData.m3ElevationColorMode || "default";
             if (mode === "default") {
-                r = 0;
-                g = 0;
-                b = 0;
+                r = SkwigMatugenTheme.shadow.r;
+                g = SkwigMatugenTheme.shadow.g;
+                b = SkwigMatugenTheme.shadow.b;
             } else if (mode === "text") {
                 r = surfaceText.r;
                 g = surfaceText.g;
@@ -966,11 +880,6 @@ Singleton {
                 r = surfaceVariant.r;
                 g = surfaceVariant.g;
                 b = surfaceVariant.b;
-            } else if (mode === "custom" && SettingsData.m3ElevationCustomColor) {
-                const c = Qt.color(SettingsData.m3ElevationCustomColor);
-                r = c.r;
-                g = c.g;
-                b = c.b;
             }
         }
         return Qt.rgba(r, g, b, alpha);
@@ -1087,7 +996,7 @@ Singleton {
     readonly property color connectedSurfaceColor: {
         if (typeof SettingsData === "undefined")
             return withAlpha(surfaceContainer, popupTransparency);
-        return isConnectedEffect ? withAlpha(SettingsData.effectiveFrameColor, SettingsData.frameOpacity) : withAlpha(surfaceContainer, popupTransparency);
+        return withAlpha(surfaceContainer, isConnectedEffect ? SettingsData.frameOpacity : popupTransparency);
     }
     readonly property real connectedSurfaceRadius: isConnectedEffect ? connectedCornerRadius : cornerRadius
     readonly property bool connectedSurfaceBlurEnabled: (typeof SettingsData === "undefined") ? true : (!isConnectedEffect || SettingsData.frameBlurEnabled)
@@ -1287,65 +1196,21 @@ Singleton {
     }
 
     function switchTheme(themeName, savePrefs = true, enableTransition = true) {
-        if (enableTransition) {
+        if (enableTransition)
             screenTransition();
-            themeTransitionTimer.themeName = themeName;
-            themeTransitionTimer.savePrefs = savePrefs;
-            themeTransitionTimer.restart();
-            return;
-        }
 
-        if (themeName === dynamic) {
-            currentTheme = dynamic;
-            if (currentThemeCategory !== "registry")
-                currentThemeCategory = dynamic;
-        } else if (themeName === custom) {
-            currentTheme = custom;
-            if (currentThemeCategory !== "registry")
-                currentThemeCategory = custom;
-            if (typeof SettingsData !== "undefined" && SettingsData.customThemeFile) {
-                loadCustomThemeFromFile(SettingsData.customThemeFile);
-            }
-        } else if (themeName === "" && currentThemeCategory === "registry") {
-            // Registry category selected but no theme chosen yet
-        } else {
-            currentTheme = themeName;
-            if (currentThemeCategory !== "registry") {
-                currentThemeCategory = "generic";
-            }
-        }
+        currentTheme = dynamic;
+        currentThemeCategory = dynamic;
         const isGreeterMode = (typeof SessionData !== "undefined" && SessionData.isGreeterMode);
         if (savePrefs && typeof SettingsData !== "undefined" && !isGreeterMode) {
             SettingsData.set("currentThemeCategory", currentThemeCategory);
             SettingsData.set("currentThemeName", currentTheme);
         }
-
-        if (!isGreeterMode) {
-            generateSystemThemesFromCurrentTheme();
-        }
     }
 
     function setLightMode(light, savePrefs = true, enableTransition = false) {
-        if (enableTransition) {
+        if (enableTransition)
             screenTransition();
-            lightModeTransitionTimer.lightMode = light;
-            lightModeTransitionTimer.savePrefs = savePrefs;
-            lightModeTransitionTimer.restart();
-            return;
-        }
-
-        const isGreeterMode = (typeof SessionData !== "undefined" && SessionData.isGreeterMode);
-        if (savePrefs && typeof SessionData !== "undefined" && !isGreeterMode) {
-            SessionData.setLightMode(light);
-        }
-
-        if (!isGreeterMode) {
-            PortalService.setLightMode(light);
-            if (typeof SettingsData !== "undefined") {
-                SettingsData.updateCosmicThemeMode(light);
-            }
-            generateSystemThemesFromCurrentTheme();
-        }
     }
 
     function toggleLightMode(savePrefs = true) {
@@ -1353,93 +1218,29 @@ Singleton {
     }
 
     function forceGenerateSystemThemes() {
-        if (!matugenAvailable) {
-            return;
-        }
-        generateSystemThemesFromCurrentTheme();
     }
 
     function getAvailableThemes() {
-        return StockThemes.getAllThemeNames();
+        return [dynamic];
     }
 
     function getThemeDisplayName(themeName) {
-        const themeData = StockThemes.getThemeByName(themeName, isLightMode);
-        return themeData.name;
+        return "Skwig Matugen";
     }
 
     function getThemeColors(themeName) {
-        if (themeName === "custom" && customThemeData) {
-            return customThemeData;
-        }
-        return StockThemes.getThemeByName(themeName, isLightMode);
+        return currentThemeData;
     }
 
     function switchThemeCategory(category, defaultTheme) {
         screenTransition();
-        themeCategoryTransitionTimer.category = category;
-        themeCategoryTransitionTimer.defaultTheme = defaultTheme;
-        themeCategoryTransitionTimer.restart();
+        currentThemeCategory = dynamic;
+        switchTheme(dynamic, true, false);
     }
 
     function loadCustomTheme(themeData) {
-        customThemeRawData = themeData;
-        const colorMode = (typeof SessionData !== "undefined" && SessionData.isLightMode) ? "light" : "dark";
-
-        var baseColors = {};
-        if (themeData.dark || themeData.light) {
-            baseColors = themeData[colorMode] || themeData.dark || themeData.light || {};
-        } else {
-            baseColors = themeData;
-        }
-
-        if (themeData.variants) {
-            const themeId = themeData.id || "";
-
-            if (themeData.variants.type === "multi" && themeData.variants.flavors && themeData.variants.accents) {
-                const defaults = themeData.variants.defaults || {};
-                const modeDefaults = defaults[colorMode] || defaults.dark || {};
-                const isGreeterMode = typeof SessionData !== "undefined" && SessionData.isGreeterMode;
-                const stored = isGreeterMode ? (GreetdSettings.registryThemeVariants[themeId]?.[colorMode] || modeDefaults) : (typeof SettingsData !== "undefined" ? SettingsData.getRegistryThemeMultiVariant(themeId, modeDefaults, colorMode) : modeDefaults);
-                var flavorId = stored.flavor || modeDefaults.flavor || "";
-                const accentId = stored.accent || modeDefaults.accent || "";
-                var flavor = findVariant(themeData.variants.flavors, flavorId);
-                if (flavor) {
-                    const hasCurrentModeColors = flavor[colorMode] && (flavor[colorMode].primary || flavor[colorMode].surface);
-                    if (!hasCurrentModeColors) {
-                        flavorId = modeDefaults.flavor || "";
-                        flavor = findVariant(themeData.variants.flavors, flavorId);
-                    }
-                }
-                const accent = findAccent(themeData.variants.accents, accentId);
-                if (flavor) {
-                    const flavorColors = flavor[colorMode] || flavor.dark || flavor.light || {};
-                    baseColors = mergeColors(baseColors, flavorColors);
-                }
-                if (accent && flavor) {
-                    const accentColors = accent[flavor.id] || {};
-                    baseColors = mergeColors(baseColors, accentColors);
-                }
-                customThemeData = baseColors;
-                generateSystemThemesFromCurrentTheme();
-                return;
-            }
-
-            if (themeData.variants.options && themeData.variants.options.length > 0) {
-                const isGreeterMode = typeof SessionData !== "undefined" && SessionData.isGreeterMode;
-                const selectedVariantId = isGreeterMode ? (typeof GreetdSettings.registryThemeVariants[themeId] === "string" ? GreetdSettings.registryThemeVariants[themeId] : themeData.variants.default) : (typeof SettingsData !== "undefined" ? SettingsData.getRegistryThemeVariant(themeId, themeData.variants.default) : themeData.variants.default);
-                const variant = findVariant(themeData.variants.options, selectedVariantId);
-                if (variant) {
-                    const variantColors = variant[colorMode] || variant.dark || variant.light || {};
-                    customThemeData = mergeColors(baseColors, variantColors);
-                    generateSystemThemesFromCurrentTheme();
-                    return;
-                }
-            }
-        }
-
-        customThemeData = baseColors;
-        generateSystemThemesFromCurrentTheme();
+        customThemeRawData = null;
+        customThemeData = null;
     }
 
     function findVariant(options, variantId) {
@@ -1472,7 +1273,6 @@ Singleton {
     }
 
     function loadCustomThemeFromFile(filePath) {
-        customThemeFileView.path = Paths.expandTilde(filePath);
     }
 
     function reloadCustomThemeVariant() {
@@ -1482,7 +1282,7 @@ Singleton {
     }
 
     property alias availableThemeNames: root._availableThemeNames
-    readonly property var _availableThemeNames: StockThemes.getAllThemeNames()
+    readonly property var _availableThemeNames: [dynamic]
     property string currentThemeName: currentTheme
 
     function panelBackground() {
@@ -1497,16 +1297,10 @@ Singleton {
     }
 
     function safeColor(value, fallback) {
-        try {
-            if (value === undefined || value === null || value === "")
-                return fallback;
-            return Qt.color(value);
-        } catch (e) {
-            return fallback;
-        }
+        return fallback;
     }
 
-    readonly property color widgetBackgroundCustomBaseColor: safeColor(typeof SettingsData !== "undefined" ? SettingsData.widgetBackgroundCustomColor : "#6750A4", primaryContainer)
+    readonly property color widgetBackgroundCustomBaseColor: primaryContainer
     readonly property real widgetBackgroundCustomStrength: Math.max(0, Math.min(1, typeof SettingsData !== "undefined" ? (SettingsData.widgetBackgroundCustomStrength ?? 0.4) : 0.4))
 
     property var widgetBaseBackgroundColor: {
@@ -1665,296 +1459,20 @@ Singleton {
     }
 
     function onLightModeChanged() {
-        if (currentTheme === "custom" && customThemeFileView.path) {
-            customThemeFileView.reload();
-        }
     }
 
     function setDesiredTheme(kind, value, isLight, iconTheme, matugenType, stockColors) {
-        if (!matugenAvailable) {
-            log.warn("matugen not available or disabled - cannot set system theme");
-            return;
-        }
-
-        if (workerRunning) {
-            log.info("Worker already running, queueing request");
-            pendingThemeRequest = {
-                kind,
-                value,
-                isLight,
-                iconTheme,
-                matugenType,
-                stockColors
-            };
-            return;
-        }
-
-        log.info("Setting desired theme -", kind, "mode:", isLight ? "light" : "dark", stockColors ? "(stock colors)" : "(dynamic)");
-
-        if (typeof NiriService !== "undefined" && CompositorService.isNiri) {
-            NiriService.suppressNextToast();
-        }
-
-        const desired = {
-            "kind": kind,
-            "value": value,
-            "mode": isLight ? "light" : "dark",
-            "iconTheme": iconTheme || "System Default",
-            "matugenType": matugenType || "scheme-tonal-spot",
-            "runUserTemplates": (typeof SettingsData !== "undefined") ? SettingsData.runUserMatugenTemplates : true
-        };
-
-        log.debug("Starting matugen worker");
-        workerRunning = true;
-
-        const args = ["dms", "matugen", "queue", "--state-dir", stateDir, "--shell-dir", shellDir, "--config-dir", configDir, "--kind", desired.kind, "--value", desired.value, "--mode", desired.mode, "--icon-theme", desired.iconTheme, "--matugen-type", desired.matugenType,];
-
-        if (!desired.runUserTemplates) {
-            args.push("--run-user-templates=false");
-        }
-        if (stockColors) {
-            args.push("--stock-colors", JSON.stringify(stockColors));
-        }
-        if (typeof SettingsData !== "undefined" && SettingsData.syncModeWithPortal) {
-            args.push("--sync-mode-with-portal");
-        }
-        if (typeof SettingsData !== "undefined" && SettingsData.terminalsAlwaysDark) {
-            args.push("--terminals-always-dark");
-        }
-        if (typeof SettingsData !== "undefined" && SettingsData.matugenContrast !== 0) {
-            args.push("--contrast", SettingsData.matugenContrast.toString());
-        }
-
-        if (typeof SettingsData !== "undefined") {
-            const skipTemplates = [];
-            if (!SettingsData.runDmsMatugenTemplates) {
-                skipTemplates.push("gtk", "nvim", "niri", "qt5ct", "qt6ct", "firefox", "pywalfox", "zenbrowser", "vesktop", "vencord", "equibop", "ghostty", "kitty", "foot", "alacritty", "wezterm", "dgop", "kcolorscheme", "vscode", "emacs", "zed");
-            } else {
-                if (!SettingsData.matugenTemplateGtk)
-                    skipTemplates.push("gtk");
-                if (!SettingsData.matugenTemplateNiri)
-                    skipTemplates.push("niri");
-                if (!SettingsData.matugenTemplateHyprland)
-                    skipTemplates.push("hyprland");
-                if (!SettingsData.matugenTemplateMangowc)
-                    skipTemplates.push("mangowc");
-                if (!SettingsData.matugenTemplateQt5ct)
-                    skipTemplates.push("qt5ct");
-                if (!SettingsData.matugenTemplateQt6ct)
-                    skipTemplates.push("qt6ct");
-                if (!SettingsData.matugenTemplateFirefox)
-                    skipTemplates.push("firefox");
-                if (!SettingsData.matugenTemplatePywalfox)
-                    skipTemplates.push("pywalfox");
-                if (!SettingsData.matugenTemplateZenBrowser)
-                    skipTemplates.push("zenbrowser");
-                if (!SettingsData.matugenTemplateVesktop)
-                    skipTemplates.push("vesktop");
-                if (!SettingsData.matugenTemplateVencord)
-                    skipTemplates.push("vencord");
-                if (!SettingsData.matugenTemplateEquibop)
-                    skipTemplates.push("equibop");
-                if (!SettingsData.matugenTemplateGhostty)
-                    skipTemplates.push("ghostty");
-                if (!SettingsData.matugenTemplateKitty)
-                    skipTemplates.push("kitty");
-                if (!SettingsData.matugenTemplateFoot)
-                    skipTemplates.push("foot");
-                if (!SettingsData.matugenTemplateNeovim)
-                    skipTemplates.push("nvim");
-                if (!SettingsData.matugenTemplateAlacritty)
-                    skipTemplates.push("alacritty");
-                if (!SettingsData.matugenTemplateWezterm)
-                    skipTemplates.push("wezterm");
-                if (!SettingsData.matugenTemplateDgop)
-                    skipTemplates.push("dgop");
-                if (!SettingsData.matugenTemplateKcolorscheme)
-                    skipTemplates.push("kcolorscheme");
-                if (!SettingsData.matugenTemplateVscode)
-                    skipTemplates.push("vscode");
-                if (!SettingsData.matugenTemplateEmacs)
-                    skipTemplates.push("emacs");
-                if (!SettingsData.matugenTemplateZed)
-                    skipTemplates.push("zed");
-            }
-            if (skipTemplates.length > 0) {
-                args.push("--skip-templates", skipTemplates.join(","));
-            }
-        }
-
-        systemThemeGenerator.command = args;
-        systemThemeGenerator.running = true;
     }
 
     function generateSystemThemesFromCurrentTheme() {
-        const isGreeterMode = (typeof SessionData !== "undefined" && SessionData.isGreeterMode);
-        if (!matugenAvailable || isGreeterMode)
-            return;
-
-        _lastGenerateMs = Date.now();
-        _pendingGenerateParams = true;
-        _themeGenerateDebounce.restart();
     }
 
     function _executeThemeGeneration() {
-        if (!_pendingGenerateParams)
-            return;
         _pendingGenerateParams = null;
-
-        const isLight = (typeof SessionData !== "undefined" && SessionData.isLightMode);
-        const iconTheme = (typeof SettingsData !== "undefined" && SettingsData.iconTheme) ? SettingsData.iconTheme : "System Default";
-
-        if (currentTheme === dynamic) {
-            if (!rawWallpaperPath) {
-                log.warn("Auto theme has no wallpaper - skipping matugen, syncing portal mode only");
-                PortalService.setLightMode(isLight);
-                return;
-            }
-            const selectedMatugenType = (typeof SettingsData !== "undefined" && SettingsData.matugenScheme) ? SettingsData.matugenScheme : "scheme-tonal-spot";
-            const kind = rawWallpaperPath.startsWith("#") ? "hex" : "image";
-            setDesiredTheme(kind, rawWallpaperPath, isLight, iconTheme, selectedMatugenType, null);
-            return;
-        }
-
-        let darkTheme, lightTheme;
-        if (currentTheme === "custom") {
-            if (customThemeRawData && (customThemeRawData.dark || customThemeRawData.light)) {
-                darkTheme = customThemeRawData.dark || customThemeRawData.light;
-                lightTheme = customThemeRawData.light || customThemeRawData.dark;
-
-                if (customThemeRawData.variants) {
-                    const themeId = customThemeRawData.id || "";
-
-                    if (customThemeRawData.variants.type === "multi" && customThemeRawData.variants.flavors && customThemeRawData.variants.accents) {
-                        const defaults = customThemeRawData.variants.defaults || {};
-                        const darkDefaults = defaults.dark || {};
-                        const lightDefaults = defaults.light || defaults.dark || {};
-                        const isGreeterMode = typeof SessionData !== "undefined" && SessionData.isGreeterMode;
-                        const storedDark = isGreeterMode ? (GreetdSettings.registryThemeVariants[themeId]?.dark || darkDefaults) : (typeof SettingsData !== "undefined" ? SettingsData.getRegistryThemeMultiVariant(themeId, darkDefaults, "dark") : darkDefaults);
-                        const storedLight = isGreeterMode ? (GreetdSettings.registryThemeVariants[themeId]?.light || lightDefaults) : (typeof SettingsData !== "undefined" ? SettingsData.getRegistryThemeMultiVariant(themeId, lightDefaults, "light") : lightDefaults);
-                        const darkFlavorId = storedDark.flavor || darkDefaults.flavor || "";
-                        const lightFlavorId = storedLight.flavor || lightDefaults.flavor || "";
-                        const darkAccentId = storedDark.accent || darkDefaults.accent || "";
-                        const lightAccentId = storedLight.accent || lightDefaults.accent || "";
-                        const darkFlavor = findVariant(customThemeRawData.variants.flavors, darkFlavorId);
-                        const lightFlavor = findVariant(customThemeRawData.variants.flavors, lightFlavorId);
-                        const darkAccent = findAccent(customThemeRawData.variants.accents, darkAccentId);
-                        const lightAccent = findAccent(customThemeRawData.variants.accents, lightAccentId);
-                        if (darkFlavor) {
-                            darkTheme = mergeColors(darkTheme, darkFlavor.dark || {});
-                            if (darkAccent)
-                                darkTheme = mergeColors(darkTheme, darkAccent[darkFlavor.id] || {});
-                        }
-                        if (lightFlavor) {
-                            lightTheme = mergeColors(lightTheme, lightFlavor.light || {});
-                            if (lightAccent)
-                                lightTheme = mergeColors(lightTheme, lightAccent[lightFlavor.id] || {});
-                        }
-                    } else if (customThemeRawData.variants.options) {
-                        const isGreeterMode = typeof SessionData !== "undefined" && SessionData.isGreeterMode;
-                        const selectedVariantId = isGreeterMode ? (typeof GreetdSettings.registryThemeVariants[themeId] === "string" ? GreetdSettings.registryThemeVariants[themeId] : customThemeRawData.variants.default) : (typeof SettingsData !== "undefined" ? SettingsData.getRegistryThemeVariant(themeId, customThemeRawData.variants.default) : customThemeRawData.variants.default);
-                        const variant = findVariant(customThemeRawData.variants.options, selectedVariantId);
-                        if (variant) {
-                            darkTheme = mergeColors(darkTheme, variant.dark || {});
-                            lightTheme = mergeColors(lightTheme, variant.light || {});
-                        }
-                    }
-                }
-            } else {
-                darkTheme = customThemeData;
-                lightTheme = customThemeData;
-            }
-        } else {
-            darkTheme = StockThemes.getThemeByName(currentTheme, false);
-            lightTheme = StockThemes.getThemeByName(currentTheme, true);
-        }
-
-        if (!darkTheme || !darkTheme.primary) {
-            log.warn("Theme data not available for:", currentTheme);
-            return;
-        }
-
-        const stockColors = buildMatugenColorsFromTheme(darkTheme, lightTheme);
-        const themeData = isLight ? lightTheme : darkTheme;
-        setDesiredTheme("hex", themeData.primary, isLight, iconTheme, themeData.matugen_type, stockColors);
     }
 
     function buildMatugenColorsFromTheme(darkTheme, lightTheme) {
-        const colors = {};
-        const isLight = SessionData !== "undefined" && SessionData.isLightMode;
-
-        function addColor(matugenKey, darkVal, lightVal) {
-            if (!darkVal && !lightVal)
-                return;
-            colors[matugenKey] = {
-                "dark": {
-                    "color": String(darkVal || lightVal)
-                },
-                "light": {
-                    "color": String(lightVal || darkVal)
-                },
-                "default": {
-                    "color": String((isLight && lightVal) ? lightVal : darkVal)
-                }
-            };
-        }
-
-        function get(theme, key, fallback) {
-            return theme[key] || fallback;
-        }
-
-        addColor("primary", darkTheme.primary, lightTheme.primary);
-        addColor("on_primary", darkTheme.primaryText, lightTheme.primaryText);
-        addColor("primary_container", darkTheme.primaryContainer, lightTheme.primaryContainer);
-        addColor("on_primary_container", darkTheme.primaryContainerText || darkTheme.surfaceText, lightTheme.primaryContainerText || lightTheme.surfaceText);
-        addColor("secondary", darkTheme.secondary, lightTheme.secondary);
-        addColor("on_secondary", darkTheme.secondaryText || darkTheme.primaryText, lightTheme.secondaryText || lightTheme.primaryText);
-        addColor("secondary_container", darkTheme.secondaryContainer || darkTheme.surfaceContainerHigh, lightTheme.secondaryContainer || lightTheme.surfaceContainerHigh);
-        addColor("on_secondary_container", darkTheme.secondaryContainerText || darkTheme.surfaceText, lightTheme.secondaryContainerText || lightTheme.surfaceText);
-        addColor("tertiary", darkTheme.tertiary || darkTheme.secondary, lightTheme.tertiary || lightTheme.secondary);
-        addColor("on_tertiary", darkTheme.tertiaryText || darkTheme.secondaryText || darkTheme.primaryText, lightTheme.tertiaryText || lightTheme.secondaryText || lightTheme.primaryText);
-        addColor("tertiary_container", darkTheme.tertiaryContainer || darkTheme.secondaryContainer || darkTheme.surfaceContainerHigh, lightTheme.tertiaryContainer || lightTheme.secondaryContainer || lightTheme.surfaceContainerHigh);
-        addColor("on_tertiary_container", darkTheme.tertiaryContainerText || darkTheme.surfaceText, lightTheme.tertiaryContainerText || lightTheme.surfaceText);
-        addColor("error", darkTheme.error || "#F2B8B5", lightTheme.error || "#B3261E");
-        addColor("on_error", darkTheme.errorText || "#601410", lightTheme.errorText || "#FFFFFF");
-        addColor("error_container", darkTheme.errorContainer || "#8C1D18", lightTheme.errorContainer || "#F9DEDC");
-        addColor("on_error_container", darkTheme.errorContainerText || "#F9DEDC", lightTheme.errorContainerText || "#410E0B");
-        addColor("surface", darkTheme.surface, lightTheme.surface);
-        addColor("on_surface", darkTheme.surfaceText, lightTheme.surfaceText);
-        addColor("surface_variant", darkTheme.surfaceVariant, lightTheme.surfaceVariant);
-        addColor("on_surface_variant", darkTheme.surfaceVariantText, lightTheme.surfaceVariantText);
-        addColor("surface_tint", darkTheme.surfaceTint, lightTheme.surfaceTint);
-        addColor("background", darkTheme.background, lightTheme.background);
-        addColor("on_background", darkTheme.backgroundText, lightTheme.backgroundText);
-        addColor("outline", darkTheme.outline, lightTheme.outline);
-        addColor("outline_variant", darkTheme.outlineVariant || darkTheme.surfaceVariant, lightTheme.outlineVariant || lightTheme.surfaceVariant);
-        addColor("surface_container", darkTheme.surfaceContainer, lightTheme.surfaceContainer);
-        addColor("surface_container_high", darkTheme.surfaceContainerHigh, lightTheme.surfaceContainerHigh);
-        addColor("surface_container_highest", darkTheme.surfaceContainerHighest || darkTheme.surfaceContainerHigh, lightTheme.surfaceContainerHighest || lightTheme.surfaceContainerHigh);
-        addColor("surface_container_low", darkTheme.surfaceContainerLow || darkTheme.surface, lightTheme.surfaceContainerLow || lightTheme.surface);
-        addColor("surface_container_lowest", darkTheme.surfaceContainerLowest || darkTheme.background, lightTheme.surfaceContainerLowest || lightTheme.background);
-        addColor("surface_bright", darkTheme.surfaceBright || darkTheme.surfaceContainerHighest || darkTheme.surfaceContainerHigh, lightTheme.surfaceBright || lightTheme.surface);
-        addColor("surface_dim", darkTheme.surfaceDim || darkTheme.background, lightTheme.surfaceDim || lightTheme.surfaceContainer);
-        addColor("inverse_surface", darkTheme.inverseSurface || lightTheme.surface, lightTheme.inverseSurface || darkTheme.surface);
-        addColor("inverse_on_surface", darkTheme.inverseOnSurface || lightTheme.surfaceText, lightTheme.inverseOnSurface || darkTheme.surfaceText);
-        addColor("inverse_primary", darkTheme.inversePrimary || lightTheme.primary, lightTheme.inversePrimary || darkTheme.primary);
-        addColor("scrim", darkTheme.scrim || "#000000", lightTheme.scrim || "#000000");
-        addColor("shadow", darkTheme.shadow || "#000000", lightTheme.shadow || "#000000");
-        addColor("source_color", darkTheme.primary, lightTheme.primary);
-        addColor("primary_fixed", darkTheme.primaryFixed || darkTheme.primaryContainer, lightTheme.primaryFixed || lightTheme.primaryContainer);
-        addColor("primary_fixed_dim", darkTheme.primaryFixedDim || darkTheme.primary, lightTheme.primaryFixedDim || lightTheme.primary);
-        addColor("on_primary_fixed", darkTheme.onPrimaryFixed || darkTheme.primaryText, lightTheme.onPrimaryFixed || lightTheme.primaryText);
-        addColor("on_primary_fixed_variant", darkTheme.onPrimaryFixedVariant || darkTheme.primaryText, lightTheme.onPrimaryFixedVariant || lightTheme.primaryText);
-        addColor("secondary_fixed", darkTheme.secondaryFixed || darkTheme.secondary, lightTheme.secondaryFixed || lightTheme.secondary);
-        addColor("secondary_fixed_dim", darkTheme.secondaryFixedDim || darkTheme.secondary, lightTheme.secondaryFixedDim || lightTheme.secondary);
-        addColor("on_secondary_fixed", darkTheme.onSecondaryFixed || darkTheme.primaryText, lightTheme.onSecondaryFixed || lightTheme.primaryText);
-        addColor("on_secondary_fixed_variant", darkTheme.onSecondaryFixedVariant || darkTheme.primaryText, lightTheme.onSecondaryFixedVariant || lightTheme.primaryText);
-        addColor("tertiary_fixed", darkTheme.tertiaryFixed || darkTheme.tertiary || darkTheme.secondary, lightTheme.tertiaryFixed || lightTheme.tertiary || lightTheme.secondary);
-        addColor("tertiary_fixed_dim", darkTheme.tertiaryFixedDim || darkTheme.tertiary || darkTheme.secondary, lightTheme.tertiaryFixedDim || lightTheme.tertiary || lightTheme.secondary);
-        addColor("on_tertiary_fixed", darkTheme.onTertiaryFixed || darkTheme.primaryText, lightTheme.onTertiaryFixed || lightTheme.primaryText);
-        addColor("on_tertiary_fixed_variant", darkTheme.onTertiaryFixedVariant || darkTheme.primaryText, lightTheme.onTertiaryFixedVariant || lightTheme.primaryText);
-
-        return colors;
+        return ({});
     }
 
     function applyGtkColors() {
@@ -2104,7 +1622,7 @@ Singleton {
             return primary;
         if (colorOverride === "surface")
             return surfaceText;
-        return colorOverride;
+        return "";
     }
 
     property var effectiveLogoColor: {
@@ -2119,16 +1637,7 @@ Singleton {
             return primary;
         if (colorOverride === "surface")
             return surfaceText;
-
-        if (!SettingsData.launcherLogoColorInvertOnMode) {
-            return colorOverride;
-        }
-
-        if (isLightMode) {
-            return invertHex(colorOverride);
-        }
-
-        return colorOverride;
+        return "";
     }
 
     Process {
@@ -2165,10 +1674,7 @@ Singleton {
             if (!pendingThemeRequest)
                 return;
 
-            const req = pendingThemeRequest;
             pendingThemeRequest = null;
-            log.info("Processing queued theme request");
-            setDesiredTheme(req.kind, req.value, req.isLight, req.iconTheme, req.matugenType, req.stockColors);
         }
     }
 
@@ -2220,13 +1726,10 @@ Singleton {
 
     FileView {
         id: dynamicColorsFileView
-        path: {
-            if (SessionData.isGreeterMode)
-                return root.greeterColorsBaseDir ? (root.greeterColorsBaseDir + "/colors.json") : "";
-            return stateDir + "/dms-colors.json";
-        }
+        path: ""
         blockLoading: false
-        watchChanges: !SessionData.isGreeterMode
+        watchChanges: false
+        printErrors: false
 
         function parseAndLoadColors() {
             try {
@@ -2258,6 +1761,9 @@ Singleton {
         }
 
         onLoadFailed: function (error) {
+            if (!dynamicColorsFileView.path)
+                return;
+
             if (currentTheme !== dynamic)
                 return;
 
@@ -2300,17 +1806,17 @@ Singleton {
 
         function toggle(): string {
             root.toggleLightMode();
-            return root.isLightMode ? "dark" : "light";
+            return root.isLightMode ? "light" : "dark";
         }
 
         function light(): string {
             root.setLightMode(true, true, true);
-            return "light";
+            return root.isLightMode ? "light" : "dark";
         }
 
         function dark(): string {
             root.setLightMode(false, true, true);
-            return "dark";
+            return root.isLightMode ? "light" : "dark";
         }
 
         function getMode(): string {
