@@ -63,6 +63,11 @@ Item {
             impl.item.toggleWithMode(mode);
     }
 
+    function pickApp(requestId, completionHandler) {
+        if (impl.item && typeof impl.item.pickApp === "function")
+            impl.item.pickApp(requestId, completionHandler);
+    }
+
     readonly property bool useSpotlightBackend: !FrameTransitionState.effectiveConnectedFrameModeActive && SettingsData.launcherStyle === "spotlight"
     readonly property var _desiredBackend: useSpotlightBackend ? spotlightComp : (FrameTransitionState.effectiveConnectedFrameModeActive ? connectedComp : standaloneComp)
     property var _resolvedBackend: null
