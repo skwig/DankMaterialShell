@@ -31,17 +31,8 @@ Item {
             var section = sections[s];
             var sectionId = section.id;
 
-            if (!root._bottomSectionHeaderActive || s > 0) {
-                cumHeights.push(cumY);
-                rows.push({
-                    _rowId: "h_" + sectionId,
-                    type: "header",
-                    section: section,
-                    sectionId: sectionId,
-                    height: 32
-                });
-                cumY += 32;
-            }
+            if (sectionId !== "apps")
+                continue;
 
             if (section.collapsed)
                 continue;

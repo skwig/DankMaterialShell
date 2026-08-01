@@ -27,6 +27,9 @@ Item {
     property var collapsedSections: ({})
     property bool keyboardNavigationActive: false
     property bool active: false
+    property bool pickOnly: false
+    property string pickRequestId: ""
+    property var pickCompletionHandler: null
     property var _modeSectionsCache: ({})
     property bool _queryDrivenSearch: false
     property bool _diskCacheConsumed: false
@@ -1961,6 +1964,10 @@ Item {
 
         switch (item.type) {
         case "app":
+            if (pickOnly) {
+                pickApp(item.data);
+                return;
+            }
             if (item.isCore) {
                 AppSearchService.executeCoreApp(item.data);
             } else if (item.data?.isAction) {
@@ -2070,6 +2077,38 @@ Item {
         if (!id)
             return null;
         return DesktopEntries.heuristicLookup(id);
+    }
+
+    function beginPick(requestId: string, completionHandler) {
+        pickOnly = true;
+        pickRequestId = requestId;
+        pickCompletionHandler = completionHandler;
+    }
+
+    function endPick() {
+        pickOnly = false;
+        pickRequestId = "";
+        pickCompletionHandler = null;
+    }
+
+    function cancelPick() {
+        if (pickCompletionHandler)
+            pickCompletionHandler.appPickerFinished(pickRequestId + "\tcancelled\t");
+        endPick();
+    }
+
+    function pickApp(app) {
+        var entry = _resolveDesktopEntry(app);
+        if (!entry || !entry.command || entry.command.length === 0)
+            return;
+
+        var executable = entry.command[0] || "";
+        if (!executable)
+            return;
+        if (pickCompletionHandler)
+            pickCompletionHandler.appPickerFinished(pickRequestId + "\tselected\t" + executable);
+        endPick();
+        itemExecuted();
     }
 
     function launchApp(app) {

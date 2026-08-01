@@ -21,9 +21,12 @@ Item {
     property var spotlightContent: launcherContentLoader.item
     property bool openedFromOverview: false
     property bool isClosing: false
+    property bool appPickerActive: false
     property bool _pendingInitialize: false
     property string _pendingQuery: ""
     property string _pendingMode: ""
+    property string _pendingPickRequestId: ""
+    property var _pendingPickCompletionHandler: null
     readonly property bool unloadContentOnClose: SettingsData.dankLauncherV2UnloadOnClose
 
     readonly property bool useHyprlandFocusGrab: CompositorService.useHyprlandFocusGrab
@@ -89,7 +92,7 @@ Item {
     onContentVisibleChanged: _kickBlurCommit()
 
     readonly property color backgroundColor: Theme.withAlpha(Theme.surfaceContainer, Theme.popupTransparency)
-    readonly property bool useBackgroundDarken: !FrameTransitionState.effectiveFrameEnabled && SettingsData.modalDarkenBackground
+    readonly property bool useBackgroundDarken: false
     readonly property bool useSingleWindow: CompositorService.isHyprland || useBackgroundDarken
     readonly property bool usesOverlayLayer: useBackgroundDarken || SettingsData.launcherUseOverlayLayer || triggerUsesOverlayLayer
     readonly property var effectiveLauncherLayer: LayerShell.fromEnv("DMS_MODAL_LAYER", root.usesOverlayLayer ? WlrLayer.Overlay : WlrLayer.Top, {
@@ -134,7 +137,16 @@ Item {
         if (spotlightContent) {
             _initializeAndShow(_pendingQuery, _pendingMode);
             _pendingInitialize = false;
+            _beginPendingAppPick();
         }
+    }
+
+    function _beginPendingAppPick() {
+        if (!appPickerActive || !_pendingPickRequestId || !_pendingPickCompletionHandler || !spotlightContent?.controller)
+            return;
+        spotlightContent.controller.beginPick(_pendingPickRequestId, _pendingPickCompletionHandler);
+        _pendingPickRequestId = "";
+        _pendingPickCompletionHandler = null;
     }
 
     function _initializeAndShow(query, mode) {
@@ -220,9 +232,26 @@ Item {
         _openCommon("", mode);
     }
 
+    function pickApp(requestId: string, completionHandler) {
+        _pendingPickRequestId = requestId;
+        _pendingPickCompletionHandler = completionHandler;
+        appPickerActive = true;
+        if (spotlightOpen)
+            _initializeAndShow("", "apps");
+        else
+            showWithMode("apps");
+        _beginPendingAppPick();
+    }
+
     function hide() {
         if (!spotlightOpen)
             return;
+        if (appPickerActive && spotlightContent?.controller?.pickOnly) {
+            spotlightContent.controller.cancelPick();
+        }
+        appPickerActive = false;
+        _pendingPickRequestId = "";
+        _pendingPickCompletionHandler = null;
         spotlightContent?.closeTransientUi?.();
         openedFromOverview = false;
         isClosing = true;
@@ -558,6 +587,7 @@ Item {
                         if (root._pendingInitialize) {
                             root._initializeAndShow(root._pendingQuery, root._pendingMode);
                             root._pendingInitialize = false;
+                            root._beginPendingAppPick();
                         }
                     }
                 }
