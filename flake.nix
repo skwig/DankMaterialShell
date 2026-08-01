@@ -77,12 +77,133 @@
         let
           qtPackages = qmlPkgs pkgs;
         in
-        pkgs.writeShellScriptBin "skwig-dms" ''
+        pkgs.runCommand "skwig-dms" { } ''
+          mkdir -p $out/bin
+
+          cat > $out/bin/skwig-dms <<'EOF'
+          #!${pkgs.runtimeShell}
           export DMS_DISABLE_HOT_RELOAD=1
           export DMS_DISABLE_MATUGEN=1
           export NIXPKGS_QT6_QML_IMPORT_PATH="${mkQmlImportPath pkgs qtPackages}''${NIXPKGS_QT6_QML_IMPORT_PATH:+:$NIXPKGS_QT6_QML_IMPORT_PATH}"
           export QT_PLUGIN_PATH="${mkQtPluginPath pkgs qtPackages}''${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
           exec ${pkgs.quickshell}/bin/qs -p ${./quickshell} "$@"
+          EOF
+
+          cat > $out/bin/skwig-dms-picker <<'EOF'
+          #!${pkgs.runtimeShell}
+          if [ "$#" -gt 0 ]; then
+            printf '%s\n' 'usage: skwig-dms-picker' >&2
+            exit 2
+          fi
+
+          input="$(${pkgs.coreutils}/bin/cat)"
+          request_id="picker-$$-$(${pkgs.coreutils}/bin/date +%s%N)"
+
+          qs_pid="$(${pkgs.procps}/bin/pgrep -o -f 'quickshell.*-p ${./quickshell}' || true)"
+          if [ -z "$qs_pid" ]; then
+            printf '%s\n' 'skwig-dms-picker: skwig-dms is not running' >&2
+            exit 2
+          fi
+
+          coproc QS_PICKER_LISTENER { ${pkgs.quickshell}/bin/qs ipc --pid "$qs_pid" listen skwig-dms pickerFinished; }
+          cleanup() {
+            ${pkgs.coreutils}/bin/kill "$QS_PICKER_LISTENER_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          if ! ${pkgs.quickshell}/bin/qs ipc --pid "$qs_pid" call skwig-dms picker "$input" "$request_id" >/dev/null; then
+            printf '%s\n' 'skwig-dms-picker: failed to open picker' >&2
+            exit 2
+          fi
+
+          selected_prefix="$request_id"$'\tselected\t'
+          cancelled_prefix="$request_id"$'\tcancelled\t'
+          while IFS= read -r line <&"''${QS_PICKER_LISTENER[0]}"; do
+            case "$line" in
+              "$selected_prefix"*)
+                printf '%s\n' "''${line#"$selected_prefix"}"
+                exit 0
+                ;;
+              "$cancelled_prefix"*)
+                exit 1
+                ;;
+            esac
+          done
+
+          exit 1
+          EOF
+
+          cat > $out/bin/skwig-dms-app-picker <<'EOF'
+          #!${pkgs.runtimeShell}
+          if [ "$#" -gt 0 ]; then
+            printf '%s\n' 'usage: skwig-dms-app-picker' >&2
+            exit 2
+          fi
+
+          request_id="app-picker-$$-$(${pkgs.coreutils}/bin/date +%s%N)"
+
+          qs_pid="$(${pkgs.procps}/bin/pgrep -o -f 'quickshell.*-p ${./quickshell}' || true)"
+          if [ -z "$qs_pid" ]; then
+            printf '%s\n' 'skwig-dms-app-picker: skwig-dms is not running' >&2
+            exit 2
+          fi
+
+          coproc QS_APP_PICKER_LISTENER { ${pkgs.quickshell}/bin/qs ipc --pid "$qs_pid" listen skwig-dms appPickerFinished; }
+          cleanup() {
+            ${pkgs.coreutils}/bin/kill "$QS_APP_PICKER_LISTENER_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          if ! ${pkgs.quickshell}/bin/qs ipc --pid "$qs_pid" call skwig-dms appPicker "$request_id" >/dev/null; then
+            printf '%s\n' 'skwig-dms-app-picker: failed to open app picker' >&2
+            exit 2
+          fi
+
+          selected_prefix="$request_id"$'\tselected\t'
+          cancelled_prefix="$request_id"$'\tcancelled\t'
+          while IFS= read -r line <&"''${QS_APP_PICKER_LISTENER[0]}"; do
+            case "$line" in
+              "$selected_prefix"*)
+                executable="''${line#"$selected_prefix"}"
+                if [ -z "$executable" ]; then
+                  exit 1
+                fi
+                case "$executable" in
+                  /*)
+                    printf '%s\n' "$executable"
+                    ;;
+                  *)
+                    resolved="$(command -v -- "$executable" || true)"
+                    if [ -z "$resolved" ]; then
+                      printf 'skwig-dms-app-picker: executable not found: %s\n' "$executable" >&2
+                      exit 1
+                    fi
+                    printf '%s\n' "$resolved"
+                    ;;
+                esac
+                exit 0
+                ;;
+              "$cancelled_prefix"*)
+                exit 1
+                ;;
+            esac
+          done
+
+          exit 1
+          EOF
+
+          cat > $out/bin/skwig-dms-launcher <<'EOF'
+          #!${pkgs.runtimeShell}
+          bindir="$(${pkgs.coreutils}/bin/dirname "$0")"
+          app="$($bindir/skwig-dms-app-picker)" || exit $?
+          prefix="''${SKWIG_DMS_LAUNCH_PREFIX:-uwsm app --}"
+          if [ -n "$prefix" ]; then
+            exec ${pkgs.runtimeShell} -lc 'exec "$@"' _ $prefix "$app"
+          fi
+          exec "$app"
+          EOF
+
+          chmod +x $out/bin/skwig-dms $out/bin/skwig-dms-picker $out/bin/skwig-dms-app-picker $out/bin/skwig-dms-launcher
         '';
 
       # Allows downstream modules to provide their own 'pkgs' (with overlays)
