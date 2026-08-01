@@ -76,13 +76,257 @@
         pkgs:
         let
           qtPackages = qmlPkgs pkgs;
+          brightnessctlPath = if pkgs.stdenv.isLinux then "${pkgs.brightnessctl}/bin/brightnessctl" else "";
+          udevadmPath = if pkgs.stdenv.isLinux then "${pkgs.systemd}/bin/udevadm" else "";
+          stdbufPath = if pkgs.stdenv.isLinux then "${pkgs.coreutils}/bin/stdbuf" else "";
         in
-        pkgs.writeShellScriptBin "skwig-dms" ''
+        pkgs.runCommand "skwig-dms" { } ''
+          mkdir -p $out/bin
+
+          cat > $out/bin/skwig-dms <<'EOF'
+          #!${pkgs.runtimeShell}
           export DMS_DISABLE_HOT_RELOAD=1
           export DMS_DISABLE_MATUGEN=1
+          export SKWIG_BRIGHTNESSCTL="${brightnessctlPath}"
+          export SKWIG_UDEVADM="${udevadmPath}"
+          export SKWIG_STDBUF="${stdbufPath}"
           export NIXPKGS_QT6_QML_IMPORT_PATH="${mkQmlImportPath pkgs qtPackages}''${NIXPKGS_QT6_QML_IMPORT_PATH:+:$NIXPKGS_QT6_QML_IMPORT_PATH}"
           export QT_PLUGIN_PATH="${mkQtPluginPath pkgs qtPackages}''${QT_PLUGIN_PATH:+:$QT_PLUGIN_PATH}"
           exec ${pkgs.quickshell}/bin/qs -p ${./quickshell} "$@"
+          EOF
+
+          cat > $out/bin/skwig-dms-picker <<'EOF'
+          #!${pkgs.runtimeShell}
+          if [ "$#" -gt 0 ]; then
+            printf '%s\n' 'usage: skwig-dms-picker' >&2
+            exit 2
+          fi
+
+          input="$(${pkgs.coreutils}/bin/cat)"
+          request_id="line-picker-$$-$(${pkgs.coreutils}/bin/date +%s%N)"
+
+          qs_pid="$(${pkgs.procps}/bin/pgrep -o -f 'quickshell.*-p ${./quickshell}' || true)"
+          if [ -z "$qs_pid" ]; then
+            printf '%s\n' 'skwig-dms-picker: skwig-dms is not running' >&2
+            exit 2
+          fi
+
+          coproc QS_LINE_PICKER_LISTENER { ${pkgs.quickshell}/bin/qs ipc --pid "$qs_pid" listen skwig-dms linePickerFinished; }
+          cleanup() {
+            ${pkgs.coreutils}/bin/kill "$QS_LINE_PICKER_LISTENER_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          if ! ${pkgs.quickshell}/bin/qs ipc --pid "$qs_pid" call skwig-dms linePicker "$input" "$request_id" >/dev/null; then
+            printf '%s\n' 'skwig-dms-picker: failed to open picker' >&2
+            exit 2
+          fi
+
+          selected_prefix="$request_id"$'\tselected\t'
+          cancelled_prefix="$request_id"$'\tcancelled\t'
+          while IFS= read -r line <&"''${QS_LINE_PICKER_LISTENER[0]}"; do
+            case "$line" in
+              "$selected_prefix"*)
+                printf '%s\n' "''${line#"$selected_prefix"}"
+                exit 0
+                ;;
+              "$cancelled_prefix"*)
+                exit 1
+                ;;
+            esac
+          done
+
+          exit 1
+          EOF
+
+          cat > $out/bin/skwig-dms-cliphist-picker <<'EOF'
+          #!${pkgs.runtimeShell}
+          if [ "$#" -gt 0 ]; then
+            printf '%s\n' 'usage: skwig-dms-cliphist-picker' >&2
+            exit 2
+          fi
+
+          request_id="cliphist-picker-$$-$(${pkgs.coreutils}/bin/date +%s%N)"
+          preview_dir="$(${pkgs.coreutils}/bin/mktemp -d)"
+          lock_dir="''${XDG_RUNTIME_DIR:-/tmp}/skwig-dms-cliphist-picker.lock"
+          if ! ${pkgs.coreutils}/bin/mkdir "$lock_dir" 2>/dev/null; then
+            if [ -f "$lock_dir/pid" ] && ${pkgs.procps}/bin/ps -p "$(${pkgs.coreutils}/bin/cat "$lock_dir/pid")" >/dev/null 2>&1; then
+              ${pkgs.coreutils}/bin/rm -rf "$preview_dir"
+              exit 0
+            fi
+            ${pkgs.coreutils}/bin/rm -rf "$lock_dir"
+            if ! ${pkgs.coreutils}/bin/mkdir "$lock_dir" 2>/dev/null; then
+              ${pkgs.coreutils}/bin/rm -rf "$preview_dir"
+              exit 0
+            fi
+          fi
+          printf '%s\n' "$$" > "$lock_dir/pid"
+
+          qs_pid="$(${pkgs.procps}/bin/pgrep -o -f 'quickshell.*-p ${./quickshell}' || true)"
+          if [ -z "$qs_pid" ]; then
+            printf '%s\n' 'skwig-dms-cliphist-picker: skwig-dms is not running' >&2
+            ${pkgs.coreutils}/bin/rm -rf "$preview_dir" "$lock_dir"
+            exit 2
+          fi
+
+          coproc QS_CLIPHIST_PICKER_LISTENER { ${pkgs.quickshell}/bin/qs ipc --pid "$qs_pid" listen skwig-dms cliphistPickerFinished; }
+          cleanup() {
+            ${pkgs.coreutils}/bin/kill "$QS_CLIPHIST_PICKER_LISTENER_PID" 2>/dev/null || true
+            ${pkgs.coreutils}/bin/rm -rf "$preview_dir" "$lock_dir"
+          }
+          trap cleanup EXIT
+
+          if ! ${pkgs.quickshell}/bin/qs ipc --pid "$qs_pid" call skwig-dms cliphistPicker "$preview_dir" "${pkgs.cliphist}/bin/cliphist" "$request_id" >/dev/null; then
+            printf '%s\n' 'skwig-dms-cliphist-picker: failed to open cliphist picker' >&2
+            exit 2
+          fi
+
+          selected_prefix="$request_id"$'\tselected\t'
+          cancelled_prefix="$request_id"$'\tcancelled\t'
+          while IFS= read -r line <&"''${QS_CLIPHIST_PICKER_LISTENER[0]}"; do
+            case "$line" in
+              "$selected_prefix"*)
+                printf '%s\n' "''${line#"$selected_prefix"}"
+                exit 0
+                ;;
+              "$cancelled_prefix"*)
+                exit 1
+                ;;
+            esac
+          done
+
+          exit 1
+          EOF
+
+          cat > $out/bin/skwig-dms-app-picker <<'EOF'
+          #!${pkgs.runtimeShell}
+          if [ "$#" -gt 0 ]; then
+            printf '%s\n' 'usage: skwig-dms-app-picker' >&2
+            exit 2
+          fi
+
+          request_id="app-picker-$$-$(${pkgs.coreutils}/bin/date +%s%N)"
+
+          qs_pid="$(${pkgs.procps}/bin/pgrep -o -f 'quickshell.*-p ${./quickshell}' || true)"
+          if [ -z "$qs_pid" ]; then
+            printf '%s\n' 'skwig-dms-app-picker: skwig-dms is not running' >&2
+            exit 2
+          fi
+
+          coproc QS_APP_PICKER_LISTENER { ${pkgs.quickshell}/bin/qs ipc --pid "$qs_pid" listen skwig-dms appPickerFinished; }
+          cleanup() {
+            ${pkgs.coreutils}/bin/kill "$QS_APP_PICKER_LISTENER_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          if ! ${pkgs.quickshell}/bin/qs ipc --pid "$qs_pid" call skwig-dms appPicker "$request_id" >/dev/null; then
+            printf '%s\n' 'skwig-dms-app-picker: failed to open app picker' >&2
+            exit 2
+          fi
+
+          selected_prefix="$request_id"$'\tselected\t'
+          cancelled_prefix="$request_id"$'\tcancelled\t'
+          while IFS= read -r line <&"''${QS_APP_PICKER_LISTENER[0]}"; do
+            case "$line" in
+              "$selected_prefix"*)
+                executable="''${line#"$selected_prefix"}"
+                if [ -z "$executable" ]; then
+                  exit 1
+                fi
+                case "$executable" in
+                  /*)
+                    printf '%s\n' "$executable"
+                    ;;
+                  *)
+                    resolved="$(command -v -- "$executable" || true)"
+                    if [ -z "$resolved" ]; then
+                      printf 'skwig-dms-app-picker: executable not found: %s\n' "$executable" >&2
+                      exit 1
+                    fi
+                    printf '%s\n' "$resolved"
+                    ;;
+                esac
+                exit 0
+                ;;
+              "$cancelled_prefix"*)
+                exit 1
+                ;;
+            esac
+          done
+
+          exit 1
+          EOF
+
+          cat > $out/bin/skwig-dms-lock <<'EOF'
+          #!${pkgs.runtimeShell}
+          if [ "$#" -gt 0 ]; then
+            printf '%s\n' 'usage: skwig-dms-lock' >&2
+            exit 2
+          fi
+
+          qs_pid="$(${pkgs.procps}/bin/pgrep -o -f 'quickshell.*-p ${./quickshell}' || true)"
+          if [ -z "$qs_pid" ]; then
+            printf '%s\n' 'skwig-dms-lock: skwig-dms is not running' >&2
+            exit 2
+          fi
+
+          result="$(${pkgs.quickshell}/bin/qs ipc --pid "$qs_pid" call skwig-dms lock 2>/dev/null || true)"
+          case "$result" in
+            LOCK_SUCCESS)
+              exit 0
+              ;;
+            LOCK_NOT_AVAILABLE)
+              printf '%s\n' 'skwig-dms-lock: lock controller is not available' >&2
+              exit 1
+              ;;
+            *)
+              printf 'skwig-dms-lock: failed to lock: %s\n' "$result" >&2
+              exit 1
+              ;;
+          esac
+          EOF
+
+          cat > $out/bin/skwig-dms-power-menu <<'EOF'
+          #!${pkgs.runtimeShell}
+          if [ "$#" -gt 0 ]; then
+            printf '%s\n' 'usage: skwig-dms-power-menu' >&2
+            exit 2
+          fi
+
+          qs_pid="$(${pkgs.procps}/bin/pgrep -o -f 'quickshell.*-p ${./quickshell}' || true)"
+          if [ -z "$qs_pid" ]; then
+            printf '%s\n' 'skwig-dms-power-menu: skwig-dms is not running' >&2
+            exit 2
+          fi
+
+          result="$(${pkgs.quickshell}/bin/qs ipc --pid "$qs_pid" call skwig-dms powerMenu 2>/dev/null || true)"
+          case "$result" in
+            POWER_MENU_OPEN_SUCCESS)
+              exit 0
+              ;;
+            POWER_MENU_NOT_AVAILABLE)
+              printf '%s\n' 'skwig-dms-power-menu: power menu is not available' >&2
+              exit 1
+              ;;
+            *)
+              printf 'skwig-dms-power-menu: failed to open power menu: %s\n' "$result" >&2
+              exit 1
+              ;;
+          esac
+          EOF
+
+          cat > $out/bin/skwig-dms-launcher <<'EOF'
+          #!${pkgs.runtimeShell}
+          bindir="$(${pkgs.coreutils}/bin/dirname "$0")"
+          app="$($bindir/skwig-dms-app-picker)" || exit $?
+          prefix="''${SKWIG_DMS_LAUNCH_PREFIX:-uwsm app --}"
+          if [ -n "$prefix" ]; then
+            exec ${pkgs.runtimeShell} -lc 'exec "$@"' _ $prefix "$app"
+          fi
+          exec "$app"
+          EOF
+
+          chmod +x $out/bin/skwig-dms $out/bin/skwig-dms-picker $out/bin/skwig-dms-cliphist-picker $out/bin/skwig-dms-app-picker $out/bin/skwig-dms-lock $out/bin/skwig-dms-power-menu $out/bin/skwig-dms-launcher
         '';
 
       # Allows downstream modules to provide their own 'pkgs' (with overlays)
