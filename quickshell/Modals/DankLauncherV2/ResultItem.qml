@@ -34,6 +34,7 @@ Rectangle {
         }
     }
     readonly property bool hasClipboardPreview: item?.type === "clipboard" && !!item?.data?.isImage && String(item?.data?.mimeType ?? "").startsWith("image/")
+    readonly property bool hasCliphistPreview: item?.type === "cliphist" && String(item?.data?.cliphistId ?? "").length > 0 && String(item?.data?.imageExt ?? "").length > 0 && String(item?.data?.mimeType ?? "").startsWith("image/")
 
     width: parent?.width ?? 200
     height: 52
@@ -161,6 +162,14 @@ Rectangle {
             visible: root.hasClipboardPreview
             anchors.verticalCenter: parent.verticalCenter
             entry: root.item?.data ?? null
+        }
+
+        CliphistPreview {
+            width: root.hasCliphistPreview ? 56 : 0
+            height: 36
+            visible: root.hasCliphistPreview
+            anchors.verticalCenter: parent.verticalCenter
+            item: root.item
         }
 
         Rectangle {
