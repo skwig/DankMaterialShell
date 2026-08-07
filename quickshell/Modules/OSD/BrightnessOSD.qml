@@ -10,7 +10,7 @@ DankOSD {
     property int _displayBrightness: 0
 
     function _syncBrightness() {
-        _displayBrightness = DisplayService.brightnessLevel;
+        _displayBrightness = SkwigBrightness.brightnessLevel;
     }
 
     osdWidth: useVertical ? (40 + Theme.spacingS * 2) : Math.min(260, screenWidth - Theme.spacingM * 2)
@@ -19,7 +19,7 @@ DankOSD {
     enableMouseInteraction: true
 
     Connections {
-        target: DisplayService
+        target: SkwigBrightness
         function onBrightnessChanged(showOsd) {
             root._syncBrightness();
             if (showOsd && SettingsData.osdBrightnessEnabled)
@@ -53,7 +53,7 @@ DankOSD {
                 DankIcon {
                     anchors.centerIn: parent
                     name: {
-                        const deviceInfo = DisplayService.getCurrentDeviceInfo();
+                        const deviceInfo = SkwigBrightness.getCurrentDeviceInfo();
                         if (!deviceInfo || deviceInfo.class === "backlight" || deviceInfo.class === "ddc")
                             return "brightness_medium";
                         if (deviceInfo.name.includes("kbd"))
@@ -73,7 +73,7 @@ DankOSD {
                 x: parent.gap * 2 + Theme.iconSize
                 anchors.verticalCenter: parent.verticalCenter
                 minimum: {
-                    const deviceInfo = DisplayService.getCurrentDeviceInfo();
+                    const deviceInfo = SkwigBrightness.getCurrentDeviceInfo();
                     if (!deviceInfo)
                         return 1;
                     if (SessionData.getBrightnessExponential(deviceInfo.id))
@@ -81,17 +81,17 @@ DankOSD {
                     return (deviceInfo.class === "backlight" || deviceInfo.class === "ddc") ? 1 : 0;
                 }
                 maximum: {
-                    const deviceInfo = DisplayService.getCurrentDeviceInfo();
+                    const deviceInfo = SkwigBrightness.getCurrentDeviceInfo();
                     if (!deviceInfo)
                         return 100;
                     if (SessionData.getBrightnessExponential(deviceInfo.id))
                         return 100;
                     return deviceInfo.displayMax || 100;
                 }
-                enabled: DisplayService.brightnessAvailable
+                enabled: SkwigBrightness.brightnessAvailable
                 showValue: true
                 unit: {
-                    const deviceInfo = DisplayService.getCurrentDeviceInfo();
+                    const deviceInfo = SkwigBrightness.getCurrentDeviceInfo();
                     if (!deviceInfo)
                         return "%";
                     if (SessionData.getBrightnessExponential(deviceInfo.id))
@@ -102,9 +102,9 @@ DankOSD {
                 alwaysShowValue: SettingsData.osdAlwaysShowValue
 
                 onSliderValueChanged: newValue => {
-                    if (!DisplayService.brightnessAvailable)
+                    if (!SkwigBrightness.brightnessAvailable)
                         return;
-                    DisplayService.setBrightness(newValue, DisplayService.lastIpcDevice, true);
+                    SkwigBrightness.setBrightness(newValue, SkwigBrightness.lastIpcDevice, true);
                     resetHideTimer();
                 }
 
@@ -136,7 +136,7 @@ DankOSD {
                 DankIcon {
                     anchors.centerIn: parent
                     name: {
-                        const deviceInfo = DisplayService.getCurrentDeviceInfo();
+                        const deviceInfo = SkwigBrightness.getCurrentDeviceInfo();
                         if (!deviceInfo || deviceInfo.class === "backlight" || deviceInfo.class === "ddc")
                             return "brightness_medium";
                         if (deviceInfo.name.includes("kbd"))
@@ -164,7 +164,7 @@ DankOSD {
                 }
 
                 readonly property int minimum: {
-                    const deviceInfo = DisplayService.getCurrentDeviceInfo();
+                    const deviceInfo = SkwigBrightness.getCurrentDeviceInfo();
                     if (!deviceInfo)
                         return 1;
                     if (SessionData.getBrightnessExponential(deviceInfo.id))
@@ -173,7 +173,7 @@ DankOSD {
                 }
 
                 readonly property int maximum: {
-                    const deviceInfo = DisplayService.getCurrentDeviceInfo();
+                    const deviceInfo = SkwigBrightness.getCurrentDeviceInfo();
                     if (!deviceInfo)
                         return 100;
                     if (SessionData.getBrightnessExponential(deviceInfo.id))
@@ -223,7 +223,7 @@ DankOSD {
                     id: vertSliderArea
                     anchors.fill: parent
                     anchors.margins: -12
-                    enabled: DisplayService.brightnessAvailable
+                    enabled: SkwigBrightness.brightnessAvailable
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
 
@@ -244,12 +244,12 @@ DankOSD {
                     onClicked: mouse => updateBrightness(mouse)
 
                     function updateBrightness(mouse) {
-                        if (!DisplayService.brightnessAvailable)
+                        if (!SkwigBrightness.brightnessAvailable)
                             return;
                         const ratio = 1.0 - (mouse.y / height);
                         const newValue = Math.round(vertSlider.minimum + ratio * (vertSlider.maximum - vertSlider.minimum));
                         vertSlider.value = newValue;
-                        DisplayService.setBrightness(newValue, DisplayService.lastIpcDevice, true);
+                        SkwigBrightness.setBrightness(newValue, SkwigBrightness.lastIpcDevice, true);
                         resetHideTimer();
                     }
                 }
@@ -260,7 +260,7 @@ DankOSD {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottomMargin: gap
                 text: {
-                    const deviceInfo = DisplayService.getCurrentDeviceInfo();
+                    const deviceInfo = SkwigBrightness.getCurrentDeviceInfo();
                     const isExponential = deviceInfo ? SessionData.getBrightnessExponential(deviceInfo.id) : false;
                     const unit = (deviceInfo && deviceInfo.class === "ddc" && !isExponential) ? "" : "%";
                     return vertSlider.value + unit;
