@@ -1,14 +1,11 @@
 > [!IMPORTANT]
-> Using DankMaterialShell as a very good component library in my personalized bar
+> Using DankMaterialShell as a very good component library in my personalized bar.
+> Changes are optimized for ease of maintenence against upstream, not necessarily for the best code.
 
 TODO:
 - sekundy v kalendar popupe
-- percenta v baterke
 - baterkovy power draw?
 - vypnut notification sound / vypnut ak notifikacia sama nema sound
-- brightness osd nefunguje
-- network qrclick / ... click nic nerobi
-
 
 # DankMaterialShell
 
