@@ -38,6 +38,7 @@ Rectangle {
     property bool hasEthernetAvailable: (NetworkService.ethernetDevices?.length ?? 0) > 0
     property bool hasWifiAvailable: (NetworkService.wifiDevices?.length ?? 0) > 0
     property bool hasBothConnectionTypes: hasEthernetAvailable && hasWifiAvailable
+    property bool showEthernetSummary: NetworkService.ethernetConnected && currentPreferenceIndex === 1
     property int maxPinnedNetworks: 3
 
     function normalizePinList(value) {
@@ -62,7 +63,6 @@ Rectangle {
             return 1;
         if (!hasWifiAvailable)
             return 0;
-
         const pref = NetworkService.userPreference;
         switch (pref) {
         case "ethernet":
@@ -164,7 +164,7 @@ Rectangle {
 
     Item {
         id: wifiToggleContent
-        anchors.top: headerRow.bottom
+        anchors.top: showEthernetSummary ? activeEthernetSummary.bottom : headerRow.bottom
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.margins: Theme.spacingM
@@ -205,7 +205,7 @@ Rectangle {
 
     Item {
         id: wifiOffContent
-        anchors.top: headerRow.bottom
+        anchors.top: showEthernetSummary ? activeEthernetSummary.bottom : headerRow.bottom
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.margins: Theme.spacingM
@@ -259,6 +259,60 @@ Rectangle {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: NetworkService.toggleWifiRadio()
+                }
+            }
+        }
+    }
+
+    Rectangle {
+        id: activeEthernetSummary
+        anchors.top: headerRow.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.leftMargin: Theme.spacingM
+        anchors.rightMargin: Theme.spacingM
+        anchors.topMargin: Theme.spacingM
+        height: showEthernetSummary ? activeEthernetRow.implicitHeight + Theme.spacingM * 2 : 0
+        radius: Theme.cornerRadius
+        color: Theme.surfaceLight
+        border.color: Theme.primary
+        border.width: 2
+        visible: height > 0
+        clip: true
+
+        Row {
+            id: activeEthernetRow
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.leftMargin: Theme.spacingM
+            spacing: Theme.spacingS
+
+            DankIcon {
+                name: "lan"
+                size: Theme.iconSize - 4
+                color: Theme.primary
+                anchors.verticalCenter: parent.verticalCenter
+            }
+
+            Column {
+                anchors.verticalCenter: parent.verticalCenter
+                width: activeEthernetSummary.width - Theme.spacingM * 3 - Theme.iconSize
+
+                StyledText {
+                    text: NetworkService.ethernetInterface || I18n.tr("Ethernet")
+                    font.pixelSize: Theme.fontSizeMedium
+                    color: Theme.primary
+                    font.weight: Font.Medium
+                    elide: Text.ElideRight
+                    width: parent.width
+                }
+
+                StyledText {
+                    text: NetworkService.ethernetIP ? I18n.tr("Connected") + " \u2022 " + NetworkService.ethernetIP : I18n.tr("Connected")
+                    font.pixelSize: Theme.fontSizeSmall
+                    color: Theme.surfaceVariantText
+                    elide: Text.ElideRight
+                    width: parent.width
                 }
             }
         }
@@ -486,7 +540,7 @@ Rectangle {
 
     Item {
         id: wifiScanningOverlay
-        anchors.top: headerRow.bottom
+        anchors.top: showEthernetSummary ? activeEthernetSummary.bottom : headerRow.bottom
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
@@ -513,7 +567,7 @@ Rectangle {
 
     DankListView {
         id: wifiContent
-        anchors.top: headerRow.bottom
+        anchors.top: showEthernetSummary ? activeEthernetSummary.bottom : headerRow.bottom
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom

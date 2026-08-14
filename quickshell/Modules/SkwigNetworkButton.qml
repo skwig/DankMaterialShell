@@ -24,11 +24,14 @@ Rectangle {
     DankIcon {
         anchors.centerIn: parent
         name: {
-            if (!NetworkService.networkAvailable || NetworkService.networkStatus === "disconnected")
+            if (!NetworkService.networkAvailable)
                 return "wifi_off";
 
-            if (NetworkService.networkStatus === "ethernet")
+            if (NetworkService.ethernetConnected)
                 return "lan";
+
+            if (NetworkService.networkStatus === "disconnected")
+                return "wifi_off";
 
             return NetworkService.wifiSignalIcon || "wifi_off";
         }
