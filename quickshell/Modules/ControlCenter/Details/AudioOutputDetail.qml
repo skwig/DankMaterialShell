@@ -15,7 +15,6 @@ Rectangle {
         const widgets = SettingsData.controlCenterWidgets || [];
         return widgets.some(widget => widget.id === "volumeSlider");
     }
-
     implicitHeight: headerRow.height + (!hasVolumeSliderInCC ? volumeSlider.height : 0) + audioContent.height + Theme.spacingM
     radius: Theme.cornerRadius
     color: Theme.nestedSurface
@@ -351,6 +350,184 @@ Rectangle {
                     }
                 }
             }
+
+            Row {
+                id: inputHeaderRow
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.leftMargin: Theme.spacingM
+                anchors.rightMargin: Theme.spacingM
+                height: 28
+
+                StyledText {
+                    text: I18n.tr("Microphone")
+                    font.pixelSize: Theme.fontSizeSmall
+                    color: Theme.surfaceVariantText
+                    font.weight: Font.Medium
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+            }
+
+            Row {
+                id: inputVolumeRow
+                width: parent.width
+                height: 35
+                spacing: 0
+
+                Rectangle {
+                    width: Theme.iconSize + Theme.spacingS * 2
+                    height: Theme.iconSize + Theme.spacingS * 2
+                    anchors.verticalCenter: parent.verticalCenter
+                    radius: (Theme.iconSize + Theme.spacingS * 2) / 2
+                    color: inputIconArea.containsMouse ? Theme.primaryHover : Theme.withAlpha(Theme.primaryHover, 0)
+
+                    DankRipple {
+                        id: inputMuteRipple
+                        cornerRadius: parent.radius
+                    }
+
+                    MouseArea {
+                        id: inputIconArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onPressed: mouse => inputMuteRipple.trigger(mouse.x, mouse.y)
+                        onClicked: {
+                            if (AudioService.source && AudioService.source.audio)
+                                AudioService.source.audio.muted = !AudioService.source.audio.muted;
+                        }
+                    }
+
+                    DankIcon {
+                        anchors.centerIn: parent
+                        name: AudioService.source && AudioService.source.audio && !AudioService.source.audio.muted ? "mic" : "mic_off"
+                        size: Theme.iconSize
+                        color: AudioService.source && AudioService.source.audio && !AudioService.source.audio.muted && AudioService.source.audio.volume > 0 ? Theme.primary : Theme.surfaceText
+                    }
+                }
+
+                DankSlider {
+                    id: inputVolumeSlider
+                    readonly property real actualVolumePercent: AudioService.source && AudioService.source.audio ? Math.round(AudioService.source.audio.volume * 100) : 0
+
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width - (Theme.iconSize + Theme.spacingS * 2)
+                    enabled: AudioService.source && AudioService.source.audio
+                    minimum: 0
+                    maximum: 100
+                    value: AudioService.source && AudioService.source.audio ? Math.min(100, Math.round(AudioService.source.audio.volume * 100)) : 0
+                    showValue: true
+                    unit: "%"
+                    valueOverride: actualVolumePercent
+                    thumbOutlineColor: Theme.surfaceVariant
+                    trackColor: Theme.ccSliderTrackColor
+                    trackOpacity: Theme.ccSliderTrackOpacity
+
+                    onSliderValueChanged: function (newValue) {
+                        if (AudioService.source && AudioService.source.audio) {
+                            AudioService.source.audio.volume = newValue / 100;
+                            if (newValue > 0 && AudioService.source.audio.muted)
+                                AudioService.source.audio.muted = false;
+                        }
+                    }
+                }
+            }
+
+            Repeater {
+                model: ScriptModel {
+                    values: {
+                        const hidden = SessionData.hiddenInputDeviceNames ?? [];
+                        const nodes = Pipewire.nodes.values.filter(node => {
+                            if (!node.audio || node.isSink || node.isStream)
+                                return false;
+                            return !hidden.includes(node.name);
+                        });
+                        let sorted = [...nodes];
+                        sorted.sort((a, b) => {
+                            if (a === AudioService.source && b !== AudioService.source)
+                                return -1;
+                            if (b === AudioService.source && a !== AudioService.source)
+                                return 1;
+                            return AudioService.displayName(a).localeCompare(AudioService.displayName(b));
+                        });
+                        return sorted;
+                    }
+                }
+
+                delegate: Rectangle {
+                    id: inputDelegate
+                    required property var modelData
+                    required property int index
+
+                    width: parent.width
+                    height: 50
+                    radius: Theme.cornerRadius
+                    color: inputMouseArea.containsMouse ? Theme.primaryHoverLight : Theme.surfaceLight
+                    border.color: modelData === AudioService.source ? Theme.primary : Theme.outlineLight
+                    border.width: modelData === AudioService.source ? 2 : 1
+
+                    DankRipple {
+                        id: inputDeviceRipple
+                        cornerRadius: inputDelegate.radius
+                    }
+
+                    Row {
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.leftMargin: Theme.spacingM
+                        spacing: Theme.spacingS
+
+                        DankIcon {
+                            name: modelData.name.includes("bluez") || modelData.name.includes("usb") ? "headset" : "mic"
+                            size: Theme.iconSize - 4
+                            color: modelData === AudioService.source ? Theme.primary : Theme.surfaceText
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        Column {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: inputDelegate.width - Theme.iconSize - Theme.spacingS - Theme.spacingM * 2
+
+                            StyledText {
+                                text: AudioService.displayName(modelData)
+                                font.pixelSize: Theme.fontSizeMedium
+                                color: Theme.surfaceText
+                                font.weight: modelData === AudioService.source ? Font.Medium : Font.Normal
+                                elide: Text.ElideRight
+                                width: parent.width
+                                wrapMode: Text.NoWrap
+                                horizontalAlignment: Text.AlignLeft
+                            }
+
+                            StyledText {
+                                text: modelData === AudioService.source ? I18n.tr("Active") : I18n.tr("Available")
+                                font.pixelSize: Theme.fontSizeSmall
+                                color: Theme.surfaceVariantText
+                                elide: Text.ElideRight
+                                width: parent.width
+                                wrapMode: Text.NoWrap
+                                horizontalAlignment: Text.AlignLeft
+                            }
+                        }
+                    }
+
+                    MouseArea {
+                        id: inputMouseArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onPressed: mouse => {
+                            let mapped = inputMouseArea.mapToItem(inputDelegate, mouse.x, mouse.y);
+                            inputDeviceRipple.trigger(mapped.x, mapped.y);
+                        }
+                        onClicked: {
+                            if (modelData && modelData.name)
+                                AudioService.setDefaultSourceByName(modelData.name);
+                        }
+                    }
+                }
+            }
+
             Row {
                 id: playbackHeaderRow
                 anchors.left: parent.left
